@@ -1,0 +1,596 @@
+import 'dart:math';
+
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../models/achievement.dart';
+import '../models/language.dart';
+import '../models/topic.dart';
+import '../theme/app_colors.dart';
+import 'api/api_client.dart';
+import 'api/api_config.dart';
+import 'app_repository.dart';
+
+class ApiAppRepository implements AppRepository {
+
+  final ApiClient client;
+
+  ApiAppRepository(this.client);
+
+  @override
+  Future<String> getChildName() async {
+    final childId = await _selectedChildId();
+    final child = await _getMap(ApiConfig.account('children/$childId/'));
+    final name = child['name']?.toString().trim();
+    return (name == null || name.isEmpty) ? 'Друг' : name;
+  }
+
+  @override
+  Future<int> getXp() async {
+    final response = await _getMap(ApiConfig.api('levels/current/'));
+    return _asInt(response['total_xp']);
+  }
+
+  @override
+  Future<int> getLevel() async {
+    final response = await _getMap(ApiConfig.api('levels/current/'));
+    final level = _asMap(response['current_level']);
+    return _asInt(level?['number']);
+  }
+
+  @override
+  Future<AppLanguage> getSelectedLanguage() async {
+    final childId = await _selectedChildId();
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'selected_learning_language_$childId';
+    final savedCode = prefs.getString(key);
+    if (savedCode != null && savedCode.isNotEmpty) {
+      return AppLanguageX.fromApiCode(savedCode);
+    }
+
+    // По умолчанию предлагаем язык, отличный от базового языка ребёнка.
+    final child = await _getMap(ApiConfig.account('children/$childId/'));
+    final base = _asMap(child['base_language']);
+    final baseCode = base?['code']?.toString();
+    final defaultLanguage = baseCode == 'en'
+        ? AppLanguage.russian
+        : AppLanguage.english;
+    await prefs.setString(key, defaultLanguage.apiCode);
+    return defaultLanguage;
+  }
+
+  @override
+  Future<void> setSelectedLanguage(AppLanguage lang) async {
+    final childId = await _selectedChildId();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selected_learning_language_$childId', lang.apiCode);
+  }
+
+  @override
+  Future<List<Topic>> getTopics() async {
+    final selectedLanguage = await getSelectedLanguage();
+
+    final topicRows = await _getList(
+      ApiConfig.api('topics/by-language/'),
+      queryParameters: {'language': selectedLanguage.apiCode},
+    );
+
+    final conceptRows = await _getList(ApiConfig.api('concepts/'));
+    final wordRows = await _getList(ApiConfig.api('words/'));
+    final progressRows = await _getList(
+      ApiConfig.api('progress/'),
+      queryParameters: {'language': selectedLanguage.apiCode},
+    );
+
+    final wordsByConcept = <int, List<Map<String, dynamic>>>{};
+    for (final raw in wordRows) {
+      final row = _asMap(raw);
+      if (row == null) continue;
+      final conceptId = _asInt(row['concept']);
+      if (conceptId <= 0) continue;
+      wordsByConcept.putIfAbsent(conceptId, () => []).add(row);
+    }
+
+    final learnedConceptIds = <int>{};
+    for (final raw in progressRows) {
+      final row = _asMap(raw);
+      if (row == null) continue;
+      if (_asInt(row['mastery']) >= 5) {
+        learnedConceptIds.add(_asInt(row['concept']));
+      }
+    }
+
+    final conceptsByTopic = <int, List<Map<String, dynamic>>>{};
+    for (final raw in conceptRows) {
+      final row = _asMap(raw);
+      if (row == null) continue;
+      final topicId = _asInt(row['topic']);
+      if (topicId <= 0) continue;
+      conceptsByTopic.putIfAbsent(topicId, () => []).add(row);
+    }
+
+    const topicColors = <Color>[
+      AppColors.accentYellow,
+      AppColors.accentBlue,
+      AppColors.accentCoral,
+      AppColors.accentPurple,
+      AppColors.accentTeal,
+    ];
+
+    final result = <Topic>[];
+
+    for (var i = 0; i < topicRows.length; i++) {
+      final topicRow = _asMap(topicRows[i]);
+      if (topicRow == null) continue;
+
+      final topicId = _asInt(topicRow['id']);
+      final conceptList = List<Map<String, dynamic>>.from(
+        conceptsByTopic[topicId] ?? const [],
+      )..sort(
+          (a, b) => _asInt(a['position']).compareTo(_asInt(b['position'])),
+        );
+
+      final items = <WordItem>[];
+
+      for (final concept in conceptList) {
+        final conceptId = _asInt(concept['id']);
+        final translations = <AppLanguage, String>{};
+        final audioUrls = <AppLanguage, String?>{};
+        final transcriptions = <AppLanguage, String?>{};
+
+        for (final word in wordsByConcept[conceptId] ?? const []) {
+          final code = word['language_code']?.toString();
+          if (code == null || code.isEmpty) continue;
+
+          final language = AppLanguageX.fromApiCode(code);
+          translations[language] = word['text']?.toString() ?? '';
+
+          final audio = ApiConfig.absoluteMediaUrl(
+            word['audio']?.toString(),
+          );
+          audioUrls[language] = audio.isEmpty ? null : audio;
+
+          final transcription = word['transcription']?.toString();
+          transcriptions[language] =
+              (transcription == null || transcription.isEmpty)
+                  ? null
+                  : transcription;
+        }
+
+        final image = ApiConfig.absoluteMediaUrl(
+          concept['image']?.toString(),
+        );
+
+        items.add(
+          WordItem(
+            id: conceptId.toString(),
+            translations: translations,
+            audioUrls: audioUrls,
+            transcriptions: transcriptions,
+            imageUrl: image.isEmpty ? null : image,
+          ),
+        );
+      }
+
+      final learnedCount = conceptList
+          .where((concept) => learnedConceptIds.contains(_asInt(concept['id'])))
+          .length;
+
+      final preview = items
+          .map((word) => word.translationFor(selectedLanguage))
+          .where((text) => text.isNotEmpty)
+          .take(3)
+          .join(', ');
+
+      final difficulty = topicRow['difficulty']?.toString() ?? '';
+      final description = preview.isNotEmpty
+          ? preview
+          : '${items.length} слов${difficulty.isEmpty ? '' : ' · $difficulty'}';
+
+      final icon = ApiConfig.absoluteMediaUrl(
+        topicRow['icon']?.toString(),
+      );
+
+      result.add(
+        Topic(
+          id: topicId.toString(),
+          number: i + 1,
+          title: topicRow['title']?.toString() ?? 'Тема',
+          description: description,
+          emoji: '📚',
+          iconUrl: icon.isEmpty ? null : icon,
+          color: topicColors[i % topicColors.length],
+          words: items,
+          learnedCount: learnedCount,
+        ),
+      );
+    }
+
+    return result;
+  }
+
+  @override
+  Future<List<Achievement>> getAchievements() async {
+    final achievements = await _getList(ApiConfig.api('achievements/'));
+    final earnedRows = await _getList(ApiConfig.api('my-achievements/'));
+
+    final earnedIds = <int>{};
+    for (final raw in earnedRows) {
+      final row = _asMap(raw);
+      final achievement = _asMap(row?['achievement']);
+      if (achievement != null) {
+        earnedIds.add(_asInt(achievement['id']));
+      }
+    }
+
+    // Данные ниже позволяют вычислить текущий прогресс без дополнительного
+    // backend-endpoint. Если позже backend будет отдавать current напрямую,
+    // эту часть можно будет упростить.
+    final progressRows = await _getList(ApiConfig.api('progress/'));
+    final gameRows = await _getList(ApiConfig.api('game-sessions/'));
+    final conceptRows = await _getList(ApiConfig.api('concepts/'));
+    final topicRows = await _getList(ApiConfig.api('topics/'));
+    final contentProgressRows =
+        await _getList(ApiConfig.api('content-progress/'));
+    final languageRows = await _getList(ApiConfig.api('languages/'));
+    final levelInfo = await _getMap(ApiConfig.api('levels/current/'));
+
+    final languageCodeById = <int, String>{};
+    for (final raw in languageRows) {
+      final row = _asMap(raw);
+      if (row == null) continue;
+      languageCodeById[_asInt(row['id'])] = row['code']?.toString() ?? '';
+    }
+
+    final allContentRows = <Map<String, dynamic>>[];
+    for (final code in languageCodeById.values.where((c) => c.isNotEmpty)) {
+      final rows = await _getList(
+        ApiConfig.api('literary-content/'),
+        queryParameters: {'language': code},
+      );
+      for (final raw in rows) {
+        final row = _asMap(raw);
+        if (row != null) allContentRows.add(row);
+      }
+    }
+
+    final conceptTopicById = <int, int>{};
+    final conceptsByTopic = <int, List<int>>{};
+    for (final raw in conceptRows) {
+      final row = _asMap(raw);
+      if (row == null) continue;
+      final conceptId = _asInt(row['id']);
+      final topicId = _asInt(row['topic']);
+      conceptTopicById[conceptId] = topicId;
+      conceptsByTopic.putIfAbsent(topicId, () => []).add(conceptId);
+    }
+
+    final contentById = <int, Map<String, dynamic>>{};
+    for (final row in allContentRows) {
+      contentById[_asInt(row['id'])] = row;
+    }
+
+    const achievementColors = <Color>[
+      AppColors.background,
+      Color(0xFFE1F5EE),
+      Color(0xFFFAECE7),
+      Color(0xFFFBEAF0),
+      AppColors.lockedBg,
+    ];
+
+    final result = <Achievement>[];
+
+    for (var i = 0; i < achievements.length; i++) {
+      final row = _asMap(achievements[i]);
+      if (row == null) continue;
+
+      final id = _asInt(row['id']);
+      final target = _asInt(row['condition_value']);
+      final languageId = _nullableInt(row['language']);
+      final topicId = _nullableInt(row['topic']);
+      final condition = row['condition_type']?.toString() ?? '';
+
+      var current = _achievementCurrentValue(
+        condition: condition,
+        languageId: languageId,
+        topicId: topicId,
+        progressRows: progressRows,
+        gameRows: gameRows,
+        contentProgressRows: contentProgressRows,
+        contentById: contentById,
+        conceptTopicById: conceptTopicById,
+        conceptsByTopic: conceptsByTopic,
+        topicRows: topicRows,
+        totalXp: _asInt(levelInfo['total_xp']),
+      );
+
+      if (earnedIds.contains(id)) {
+        current = max(current, target);
+      }
+
+      final icon = ApiConfig.absoluteMediaUrl(row['icon']?.toString());
+
+      result.add(
+        Achievement(
+          id: id.toString(),
+          title: row['title']?.toString() ?? 'Достижение',
+          description: row['description']?.toString() ?? '',
+          emoji: _achievementEmoji(condition),
+          iconUrl: icon.isEmpty ? null : icon,
+          iconBg: achievementColors[i % achievementColors.length],
+          current: current,
+          target: target,
+          xpReward: _asInt(row['xp_reward']),
+        ),
+      );
+    }
+
+    return result;
+  }
+
+  int _achievementCurrentValue({
+    required String condition,
+    required int? languageId,
+    required int? topicId,
+    required List<dynamic> progressRows,
+    required List<dynamic> gameRows,
+    required List<dynamic> contentProgressRows,
+    required Map<int, Map<String, dynamic>> contentById,
+    required Map<int, int> conceptTopicById,
+    required Map<int, List<int>> conceptsByTopic,
+    required List<dynamic> topicRows,
+    required int totalXp,
+  }) {
+    bool progressMatches(Map<String, dynamic> row) {
+      if (languageId != null && _asInt(row['language']) != languageId) {
+        return false;
+      }
+      if (topicId != null) {
+        final conceptId = _asInt(row['concept']);
+        if (conceptTopicById[conceptId] != topicId) return false;
+      }
+      return true;
+    }
+
+    bool gameMatches(Map<String, dynamic> row) {
+      if (row['finished_at'] == null) return false;
+      if (languageId != null && _asInt(row['language']) != languageId) {
+        return false;
+      }
+      if (topicId != null && _asInt(row['topic']) != topicId) {
+        return false;
+      }
+      return true;
+    }
+
+    switch (condition) {
+      case 'words_learned':
+        return progressRows
+            .map(_asMap)
+            .whereType<Map<String, dynamic>>()
+            .where(progressMatches)
+            .where((row) => _asInt(row['mastery']) >= 5)
+            .length;
+
+      case 'games_completed':
+        return gameRows
+            .map(_asMap)
+            .whereType<Map<String, dynamic>>()
+            .where(gameMatches)
+            .length;
+
+      case 'correct_answers':
+        return gameRows
+            .map(_asMap)
+            .whereType<Map<String, dynamic>>()
+            .where(gameMatches)
+            .fold<int>(
+              0,
+              (sum, row) => sum + _asInt(row['correct_count']),
+            );
+
+      case 'perfect_games':
+        return gameRows
+            .map(_asMap)
+            .whereType<Map<String, dynamic>>()
+            .where(gameMatches)
+            .where(
+              (row) =>
+                  _asInt(row['wrong_count']) == 0 &&
+                  _asInt(row['correct_count']) > 0,
+            )
+            .length;
+
+      case 'poems_listened':
+        return contentProgressRows
+            .map(_asMap)
+            .whereType<Map<String, dynamic>>()
+            .where((progress) {
+          if (_asInt(progress['listen_count']) <= 0) return false;
+          final content = contentById[_asInt(progress['content'])];
+          if (content == null || content['content_type'] != 'poem') {
+            return false;
+          }
+          if (languageId != null &&
+              _asInt(content['language']) != languageId) {
+            return false;
+          }
+          return true;
+        }).length;
+
+      case 'proverbs_learned':
+        return contentProgressRows
+            .map(_asMap)
+            .whereType<Map<String, dynamic>>()
+            .where((progress) {
+          if (progress['is_completed'] != true) return false;
+          final content = contentById[_asInt(progress['content'])];
+          if (content == null || content['content_type'] != 'proverb') {
+            return false;
+          }
+          if (languageId != null &&
+              _asInt(content['language']) != languageId) {
+            return false;
+          }
+          return true;
+        }).length;
+
+      case 'topics_completed':
+        if (languageId == null) return 0;
+
+        final activeTopicIds = topicRows
+            .map(_asMap)
+            .whereType<Map<String, dynamic>>()
+            .where((row) => row['is_active'] != false)
+            .map((row) => _asInt(row['id']))
+            .where((id) => id > 0)
+            .where((id) => topicId == null || id == topicId)
+            .toList();
+
+        var completed = 0;
+
+        for (final id in activeTopicIds) {
+          final conceptIds = conceptsByTopic[id] ?? const [];
+          if (conceptIds.isEmpty) continue;
+
+          final learnedIds = progressRows
+              .map(_asMap)
+              .whereType<Map<String, dynamic>>()
+              .where(
+                (row) =>
+                    _asInt(row['language']) == languageId &&
+                    _asInt(row['mastery']) >= 5 &&
+                    conceptIds.contains(_asInt(row['concept'])),
+              )
+              .map((row) => _asInt(row['concept']))
+              .toSet();
+
+          if (learnedIds.length == conceptIds.length) {
+            completed++;
+          }
+        }
+
+        return completed;
+
+      case 'xp_earned':
+        return totalXp;
+
+      default:
+        return 0;
+    }
+  }
+
+  String _achievementEmoji(String condition) {
+    switch (condition) {
+      case 'words_learned':
+        return '📚';
+      case 'games_completed':
+        return '🎮';
+      case 'correct_answers':
+        return '✅';
+      case 'perfect_games':
+        return '🏆';
+      case 'poems_listened':
+        return '🎧';
+      case 'proverbs_learned':
+        return '💬';
+      case 'topics_completed':
+        return '🌟';
+      case 'xp_earned':
+        return '⚡';
+      default:
+        return '🏅';
+    }
+  }
+
+  Future<int> _selectedChildId() async {
+    final childId = await client.childSessionStorage.readSelectedChildId();
+    if (childId == null || childId <= 0) {
+      throw const AppApiException('Сначала выберите профиль ребёнка.');
+    }
+    return childId;
+  }
+
+  Future<List<dynamic>> _getList(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    try {
+      final response = await client.dio.get<dynamic>(
+        path,
+        queryParameters: queryParameters,
+      );
+      final data = response.data;
+
+      if (data is List) return data;
+
+      // На случай, если позже в DRF включат pagination.
+      if (data is Map && data['results'] is List) {
+        return data['results'] as List;
+      }
+
+      throw const AppApiException('Сервер вернул неожиданный формат списка');
+    } on DioException catch (e) {
+      throw AppApiException(_dioMessage(e));
+    }
+  }
+
+  Future<Map<String, dynamic>> _getMap(String path) async {
+    try {
+      final response = await client.dio.get<dynamic>(path);
+      final map = _asMap(response.data);
+      if (map == null) {
+        throw const AppApiException('Сервер вернул неожиданный формат данных');
+      }
+      return map;
+    } on DioException catch (e) {
+      throw AppApiException(_dioMessage(e));
+    }
+  }
+
+  String _dioMessage(DioException e) {
+    final data = e.response?.data;
+    if (data is Map) {
+      if (data['detail'] != null) return data['detail'].toString();
+      if (data['error'] != null) return data['error'].toString();
+    }
+
+    if (e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout) {
+      return 'Нет соединения с Django. Проверь IP компьютера, Wi-Fi и firewall.';
+    }
+
+    return 'Ошибка API: ${e.response?.statusCode ?? e.type.name}';
+  }
+
+  static Map<String, dynamic>? _asMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map(
+        (key, dynamic item) => MapEntry(key.toString(), item),
+      );
+    }
+    return null;
+  }
+
+  static int _asInt(dynamic value) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static int? _nullableInt(dynamic value) {
+    if (value == null) return null;
+    final parsed = int.tryParse(value.toString());
+    return parsed;
+  }
+}
+
+class AppApiException implements Exception {
+  final String message;
+
+  const AppApiException(this.message);
+
+  @override
+  String toString() => message;
+}
