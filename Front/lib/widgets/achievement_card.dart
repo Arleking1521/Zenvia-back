@@ -1,139 +1,65 @@
 import 'package:flutter/material.dart';
-
 import '../models/achievement.dart';
 import '../theme/app_colors.dart';
-import 'progress_bar.dart';
 
 class AchievementCard extends StatelessWidget {
   final Achievement achievement;
-
-  const AchievementCard({
-    super.key,
-    required this.achievement,
-  });
+  const AchievementCard({super.key, required this.achievement});
 
   @override
   Widget build(BuildContext context) {
     final completed = achievement.isCompleted;
-    final locked = achievement.current == 0;
-
-    return Opacity(
-      opacity: locked ? 0.75 : 1,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceWhite,
-          borderRadius: BorderRadius.circular(20),
-          border: completed
-              ? Border.all(
-                  color: AppColors.primary,
-                  width: 1.5,
-                )
-              : null,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: achievement.iconBg,
-                shape: BoxShape.circle,
-              ),
-              clipBehavior: Clip.antiAlias,
-              alignment: Alignment.center,
-              child: _AchievementIcon(achievement: achievement),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: completed
+            ? const LinearGradient(colors: [Color(0xFFFFF7CF), Colors.white])
+            : null,
+        color: completed ? null : Colors.white.withValues(alpha: .96),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: completed ? AppColors.gold : achievement.iconBg.withValues(alpha: .35), width: 1.5),
+        boxShadow: [BoxShadow(color: AppColors.deepBlue.withValues(alpha: .08), blurRadius: 18, offset: const Offset(0, 7))],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(color: achievement.iconBg, borderRadius: BorderRadius.circular(20)),
+            clipBehavior: Clip.antiAlias,
+            alignment: Alignment.center,
+            child: _AchievementIcon(achievement: achievement),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(achievement.title, style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.deepBlue, fontSize: 15)),
+                const SizedBox(height: 3),
+                Text(achievement.description, style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(
+                    value: achievement.progress,
+                    minHeight: 8,
+                    backgroundColor: AppColors.trackGrey,
+                    valueColor: AlwaysStoppedAnimation(completed ? AppColors.gold : AppColors.primary),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    achievement.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    achievement.description,
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  if (!completed) ...[
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: AppProgressBar(
-                            progress: achievement.progress,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${achievement.current}/${achievement.target}',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            completed
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.check_circle_rounded,
-                        color: AppColors.primary,
-                        size: 20,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '+${achievement.xpReward} XP',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primaryDark,
-                        ),
-                      ),
-                    ],
-                  )
-                : Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: locked
-                          ? AppColors.lockedBg
-                          : AppColors.starBg,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      '+${achievement.xpReward} XP',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: locked
-                            ? AppColors.textMuted
-                            : AppColors.starText,
-                      ),
-                    ),
-                  ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            children: [
+              Icon(completed ? Icons.star_rounded : Icons.auto_awesome_rounded, color: completed ? AppColors.goldDark : AppColors.purple),
+              Text('+${achievement.xpReward}', style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.deepBlue)),
+              const Text('XP', style: TextStyle(fontSize: 9, color: AppColors.textSecondary)),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -141,31 +67,11 @@ class AchievementCard extends StatelessWidget {
 
 class _AchievementIcon extends StatelessWidget {
   final Achievement achievement;
-
-  const _AchievementIcon({
-    required this.achievement,
-  });
-
+  const _AchievementIcon({required this.achievement});
   @override
   Widget build(BuildContext context) {
     final url = achievement.iconUrl;
-
-    if (url == null || url.isEmpty) {
-      return Text(
-        achievement.emoji,
-        style: const TextStyle(fontSize: 24),
-      );
-    }
-
-    return Image.network(
-      url,
-      width: 52,
-      height: 52,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => Text(
-        achievement.emoji,
-        style: const TextStyle(fontSize: 24),
-      ),
-    );
+    if (url == null || url.isEmpty) return Text(achievement.emoji, style: const TextStyle(fontSize: 30));
+    return Image.network(url, fit: BoxFit.cover, width: 62, height: 62, errorBuilder: (_, __, ___) => Text(achievement.emoji, style: const TextStyle(fontSize: 30)));
   }
 }

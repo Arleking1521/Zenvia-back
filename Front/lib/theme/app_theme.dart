@@ -5,33 +5,77 @@ class AppTheme {
   AppTheme._();
 
   static ThemeData get light {
-    return ThemeData(
+    final base = ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: AppColors.background,
-      fontFamily: 'Roboto',
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
         primary: AppColors.primary,
+        secondary: AppColors.gold,
         error: AppColors.danger,
+        surface: Colors.white,
       ),
-      textTheme: const TextTheme(
-        headlineSmall: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary,
+    );
+
+    return base.copyWith(
+      textTheme: base.textTheme.copyWith(
+        headlineLarge: const TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.w900,
+          color: AppColors.deepBlue,
+          height: 1.05,
         ),
-        titleMedium: TextStyle(
+        headlineSmall: const TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w900,
+          color: AppColors.deepBlue,
+          height: 1.1,
+        ),
+        titleLarge: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+          color: AppColors.deepBlue,
+        ),
+        titleMedium: const TextStyle(
           fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w800,
+          color: AppColors.deepBlue,
         ),
-        bodyMedium: TextStyle(
+        bodyMedium: const TextStyle(
           fontSize: 14,
           color: AppColors.textSecondary,
+          height: 1.4,
         ),
-        bodySmall: TextStyle(
+        bodySmall: const TextStyle(
           fontSize: 12,
           color: AppColors.textSecondary,
+          height: 1.35,
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.96),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(22),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(22),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.8)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(22),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -39,12 +83,14 @@ class AppTheme {
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28),
-          ),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          elevation: 4,
+          shadowColor: AppColors.primary.withValues(alpha: 0.35),
         ),
+      ),
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }

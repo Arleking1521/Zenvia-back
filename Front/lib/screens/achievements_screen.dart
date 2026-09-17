@@ -4,14 +4,11 @@ import '../data/app_repository.dart';
 import '../models/achievement.dart';
 import '../theme/app_colors.dart';
 import '../widgets/achievement_card.dart';
+import '../widgets/magic_ui.dart';
 
 class AchievementsScreen extends StatefulWidget {
   final AppRepository repository;
-
-  const AchievementsScreen({
-    super.key,
-    required this.repository,
-  });
+  const AchievementsScreen({super.key, required this.repository});
 
   @override
   State<AchievementsScreen> createState() => _AchievementsScreenState();
@@ -32,99 +29,82 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
     _future = widget.repository.getAchievements();
   }
 
-  void _reload() {
-    setState(() {
-      _future = widget.repository.getAchievements();
-    });
-  }
+  void _reload() => setState(() { _future = widget.repository.getAchievements(); });
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Row(
-              children: [
-                const SizedBox(width: 40),
-                Expanded(
-                  child: Text(
-                    'Достижения',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                ),
-                IconButton(
-                  onPressed: _reload,
-                  icon: const Icon(Icons.refresh_rounded),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: FutureBuilder<List<Achievement>>(
-              future: _future,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                    ),
-                  );
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            snapshot.error.toString(),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _reload,
-                            child: const Text('Повторить'),
-                          ),
-                        ],
+    return FantasyBackground(
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+              child: MagicCard(
+                padding: EdgeInsets.zero,
+                gradient: AppColors.sunsetGradient,
+                child: SizedBox(
+                  height: 150,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(28),
+                          child: Image.asset('assets/images/dragon_cheer.png', fit: BoxFit.cover),
+                        ),
                       ),
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(28),
+                            gradient: LinearGradient(colors: [AppColors.deepBlue.withValues(alpha: .78), Colors.transparent]),
+                          ),
+                        ),
+                      ),
+                      const Positioned(
+                        left: 18,
+                        top: 20,
+                        width: 190,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Твои награды ⭐', style: TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.w900)),
+                            SizedBox(height: 6),
+                            Text('Каждое достижение делает твоего дракона сильнее!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, height: 1.25)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: FutureBuilder<List<Achievement>>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                  }
+                  if (snapshot.hasError) return Center(child: MagicPrimaryButton(label: 'Повторить', onPressed: _reload));
+                  final items = snapshot.data!;
+                  if (items.isEmpty) return const Center(child: Text('Достижений пока нет'));
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      _reload();
+                      await _future;
+                    },
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                      itemCount: items.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (_, i) => AchievementCard(achievement: items[i]),
                     ),
                   );
-                }
-
-                final items = snapshot.data!;
-
-                if (items.isEmpty) {
-                  return const Center(
-                    child: Text('Достижений пока нет'),
-                  );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    _reload();
-                    await _future;
-                  },
-                  child: ListView.separated(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                    itemCount: items.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, i) =>
-                        AchievementCard(achievement: items[i]),
-                  ),
-                );
-              },
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -5,6 +5,7 @@ import '../data/parent_repository.dart';
 import '../models/child_profile.dart';
 import '../models/parent_account.dart';
 import '../theme/app_colors.dart';
+import '../widgets/magic_ui.dart';
 import '../widgets/parent_pin_dialog.dart';
 import 'child_editor_screen.dart';
 import 'parent_settings_screen.dart';
@@ -48,6 +49,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
       final goToTariffs = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
           title: Text(
             data.childAccess.activeSubscription
                 ? 'Лимит профилей исчерпан'
@@ -69,9 +71,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
           ],
         ),
       );
-      if (goToTariffs == true && mounted) {
-        await _openTariffs();
-      }
+      if (goToTariffs == true && mounted) await _openTariffs();
       return;
     }
 
@@ -124,6 +124,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
         title: const Text('Удалить профиль?'),
         content: Text(
           'Профиль «${child.name}» будет скрыт, но учебная история сохранится в базе.',
@@ -178,161 +179,190 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: FutureBuilder<ParentDashboard>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(snapshot.error.toString(), textAlign: TextAlign.center),
-                      const SizedBox(height: 12),
-                      FilledButton(onPressed: _reload, child: const Text('Повторить')),
-                    ],
+      body: FantasyBackground(
+        child: SafeArea(
+          child: FutureBuilder<ParentDashboard>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                );
+              }
+              if (snapshot.hasError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: MagicCard(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('☁️', style: TextStyle(fontSize: 44)),
+                          const SizedBox(height: 8),
+                          Text(snapshot.error.toString(), textAlign: TextAlign.center),
+                          const SizedBox(height: 14),
+                          MagicPrimaryButton(label: 'Повторить', onPressed: _reload),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              );
-            }
+                );
+              }
 
-            final data = snapshot.data!;
-            return RefreshIndicator(
-              onRefresh: () async {
-                _reload();
-                await _future;
-              },
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Здравствуйте, ${data.parent.firstName}!',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineSmall
-                                  ?.copyWith(fontWeight: FontWeight.w800),
-                            ),
-                            Text(
-                              data.parent.email,
-                              style: const TextStyle(color: AppColors.textSecondary),
-                            ),
-                          ],
+              final data = snapshot.data!;
+              return RefreshIndicator(
+                onRefresh: () async {
+                  _reload();
+                  await _future;
+                },
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
+                  children: [
+                    Row(
+                      children: [
+                        const ZenviaLogo(scale: .56),
+                        const Spacer(),
+                        Material(
+                          color: Colors.white,
+                          shape: const CircleBorder(),
+                          child: IconButton(
+                            onPressed: _openSettings,
+                            icon: const Icon(Icons.settings_rounded, color: AppColors.deepBlue),
+                          ),
                         ),
-                      ),
-                      IconButton.filledTonal(
-                        onPressed: _openSettings,
-                        icon: const Icon(Icons.settings_rounded),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  _SubscriptionCard(dashboard: data, onTap: _openTariffs),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    MagicCard(
+                      padding: EdgeInsets.zero,
+                      gradient: AppColors.magicGradient,
+                      child: SizedBox(
+                        height: 168,
+                        child: Stack(
                           children: [
-                            Text(
-                              'Профили детей',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            Positioned.fill(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(28),
+                                child: Image.asset(
+                                  'assets/images/dragon_wave.png',
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              data.childAccess.activeSubscription
-                                  ? '${data.childAccess.activeChildren} из ${data.childAccess.maxChildren} профилей'
-                                  : 'Нет активной подписки',
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 13,
+                            Positioned.fill(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(28),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      AppColors.deepBlue.withValues(alpha: .88),
+                                      AppColors.skyTop.withValues(alpha: .52),
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: 18,
+                              top: 24,
+                              width: 215,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Здравствуйте, ${data.parent.firstName}!',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 23,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    data.parent.email,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    'Здесь вы управляете семейным обучением ✨',
+                                    style: TextStyle(color: Colors.white, fontSize: 12.5),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
-                      TextButton.icon(
-                        onPressed: () => _requestAddChild(data),
-                        icon: const Icon(Icons.add_rounded),
-                        label: const Text('Добавить'),
-                      ),
-                    ],
-                  ),
-                  if (!data.childAccess.canCreateChild) ...[
-                    const SizedBox(height: 6),
-                    _LimitNotice(
-                      access: data.childAccess,
-                      onTariffs: _openTariffs,
                     ),
-                  ],
-                  const SizedBox(height: 8),
-                  if (data.children.isEmpty)
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(22),
+                    const SizedBox(height: 18),
+                    _SubscriptionCard(dashboard: data, onTap: _openTariffs),
+                    const SizedBox(height: 22),
+                    MagicSectionTitle(
+                      title: 'Профили детей',
+                      action: 'Добавить',
+                      onAction: () => _requestAddChild(data),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      data.childAccess.activeSubscription
+                          ? '${data.childAccess.activeChildren} из ${data.childAccess.maxChildren} профилей'
+                          : 'Нет активной подписки',
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
+                    if (!data.childAccess.canCreateChild) ...[
+                      const SizedBox(height: 10),
+                      _LimitNotice(access: data.childAccess, onTariffs: _openTariffs),
+                    ],
+                    const SizedBox(height: 12),
+                    if (data.children.isEmpty)
+                      MagicCard(
                         child: Column(
                           children: [
-                            const Icon(
-                              Icons.child_care_rounded,
-                              size: 52,
-                              color: AppColors.primary,
-                            ),
+                            const Text('🐣', style: TextStyle(fontSize: 54)),
                             const SizedBox(height: 8),
                             Text(
                               data.childAccess.canCreateChild
-                                  ? 'Создайте профиль ребёнка, чтобы начать обучение.'
-                                  : (data.childAccess.reason ??
-                                      'Сначала активируйте подходящий тариф.'),
+                                  ? 'Создайте первый профиль ребёнка и начните приключение.'
+                                  : (data.childAccess.reason ?? 'Сначала выберите тариф.'),
                               textAlign: TextAlign.center,
+                              style: const TextStyle(color: AppColors.textSecondary),
                             ),
-                            const SizedBox(height: 12),
-                            FilledButton.icon(
+                            const SizedBox(height: 14),
+                            MagicPrimaryButton(
+                              label: data.childAccess.canCreateChild
+                                  ? 'Создать профиль'
+                                  : 'Выбрать тариф',
+                              icon: data.childAccess.canCreateChild
+                                  ? Icons.add_rounded
+                                  : Icons.workspace_premium_rounded,
                               onPressed: () => data.childAccess.canCreateChild
                                   ? _requestAddChild(data)
                                   : _openTariffs(),
-                              icon: Icon(
-                                data.childAccess.canCreateChild
-                                    ? Icons.add
-                                    : Icons.workspace_premium_rounded,
-                              ),
-                              label: Text(
-                                data.childAccess.canCreateChild
-                                    ? 'Создать профиль'
-                                    : 'Выбрать тариф',
-                              ),
                             ),
                           ],
                         ),
                       ),
+                    ...data.children.map(
+                      (child) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _ChildCard(
+                          child: child,
+                          onOpen: () => _openChild(child),
+                          onEdit: () => _editChild(child),
+                          onDelete: () => _archiveChild(child),
+                        ),
+                      ),
                     ),
-                  ...data.children.map(
-                    (child) => _ChildCard(
-                      child: child,
-                      onOpen: () => _openChild(child),
-                      onEdit: () => _editChild(child),
-                      onDelete: () => _archiveChild(child),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -342,14 +372,12 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
 class _SubscriptionCard extends StatelessWidget {
   final ParentDashboard dashboard;
   final VoidCallback onTap;
-
   const _SubscriptionCard({required this.dashboard, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final sub = dashboard.subscription;
     final access = dashboard.childAccess;
-
     String subtitle;
     if (sub == null) {
       subtitle = 'Выберите тариф для семьи';
@@ -361,39 +389,48 @@ class _SubscriptionCard extends StatelessWidget {
       subtitle = 'Статус: ${sub.statusLabel}';
     }
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: Row(
-          children: [
-            const CircleAvatar(
-              radius: 24,
-              child: Icon(Icons.workspace_premium_rounded),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(26),
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFFF4C7), Color(0xFFFFE3A1)],
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    sub?.tariff.title ?? 'Тариф не выбран',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: AppColors.textSecondary),
-                  ),
-                ],
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: AppColors.gold.withValues(alpha: .55)),
+          ),
+          child: Row(
+            children: [
+              const CircleAvatar(
+                radius: 26,
+                backgroundColor: Colors.white,
+                child: Icon(Icons.workspace_premium_rounded, color: AppColors.goldDark, size: 28),
               ),
-            ),
-            const Icon(Icons.chevron_right_rounded),
-          ],
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      sub?.tariff.title ?? 'Тариф не выбран',
+                      style: const TextStyle(
+                        color: AppColors.deepBlue,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(subtitle, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.goldDark),
+            ],
+          ),
         ),
       ),
     );
@@ -403,17 +440,13 @@ class _SubscriptionCard extends StatelessWidget {
 class _LimitNotice extends StatelessWidget {
   final ChildProfileAccess access;
   final VoidCallback onTariffs;
-
   const _LimitNotice({required this.access, required this.onTariffs});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return MagicCard(
+      color: const Color(0xFFFFF3E6),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.orange.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Row(
         children: [
           const Icon(Icons.info_outline_rounded, color: Colors.orange),
@@ -421,7 +454,7 @@ class _LimitNotice extends StatelessWidget {
           Expanded(
             child: Text(
               access.reason ?? 'Создание дополнительного профиля недоступно.',
-              style: const TextStyle(fontSize: 13),
+              style: const TextStyle(fontSize: 12.5),
             ),
           ),
           TextButton(onPressed: onTariffs, child: const Text('Тарифы')),
@@ -436,7 +469,6 @@ class _ChildCard extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-
   const _ChildCard({
     required this.child,
     required this.onOpen,
@@ -446,52 +478,67 @@ class _ChildCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 31,
-              backgroundColor: AppColors.background,
-              backgroundImage: child.avatar?.imageUrl == null
-                  ? null
-                  : NetworkImage(child.avatar!.imageUrl!),
-              child: child.avatar?.imageUrl == null
-                  ? const Text('🙂', style: TextStyle(fontSize: 28))
-                  : null,
+    return MagicCard(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Container(
+            width: 68,
+            height: 68,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFFE6F7FF), Color(0xFFE9FFE9)]),
+              borderRadius: BorderRadius.circular(22),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    child.name,
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+            clipBehavior: Clip.antiAlias,
+            child: child.avatar?.imageUrl == null
+                ? const Center(child: Text('🐉', style: TextStyle(fontSize: 34)))
+                : Image.network(
+                    child.avatar!.imageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Center(child: Text('🐉', style: TextStyle(fontSize: 34))),
                   ),
-                  Text('${child.totalXp} XP · Уровень ${child.level?.number ?? 0}'),
-                  Text(
-                    child.baseLanguage?.title ?? 'Язык не выбран',
-                    style: const TextStyle(color: AppColors.textSecondary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  child.name,
+                  style: const TextStyle(
+                    color: AppColors.deepBlue,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 17,
                   ),
-                ],
-              ),
-            ),
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'edit') onEdit();
-                if (value == 'delete') onDelete();
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit', child: Text('Редактировать')),
-                PopupMenuItem(value: 'delete', child: Text('Удалить')),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Уровень ${child.level?.number ?? 0} · ${child.totalXp} XP',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                ),
+                Text(
+                  child.baseLanguage?.title ?? 'Язык не выбран',
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                ),
               ],
             ),
-            FilledButton(onPressed: onOpen, child: const Text('Открыть')),
-          ],
-        ),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'edit') onEdit();
+              if (value == 'delete') onDelete();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('Редактировать')),
+              PopupMenuItem(value: 'delete', child: Text('Удалить')),
+            ],
+          ),
+          IconButton.filled(
+            onPressed: onOpen,
+            style: IconButton.styleFrom(backgroundColor: AppColors.primary),
+            icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+          ),
+        ],
       ),
     );
   }

@@ -11,16 +11,21 @@ import 'data/game_repository.dart';
 import 'data/parent_repository.dart';
 import 'models/child_profile.dart';
 import 'screens/achievements_screen.dart';
+import 'screens/adventure_choice_screen.dart';
 import 'screens/child_settings_screen.dart';
 import 'screens/games_screen.dart';
+import 'screens/learned_words_games_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/parent_dashboard_screen.dart';
 import 'screens/parent_login_screen.dart';
 import 'screens/topics_screen.dart';
+import 'screens/smart_content_screen.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
+import 'widgets/adaptive_app_viewport.dart';
 import 'widgets/bottom_nav.dart';
 import 'widgets/parent_pin_dialog.dart';
+import 'widgets/magic_ui.dart';
 
 void main() => runApp(const KidsLangApp());
 
@@ -36,9 +41,12 @@ class KidsLangApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Учим языки',
+      title: 'Zenvia Kids',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      builder: (context, child) => AdaptiveAppViewport(
+        child: child ?? const SizedBox.shrink(),
+      ),
       home: const _AuthGate(),
     );
   }
@@ -80,7 +88,21 @@ class _AuthGateState extends State<_AuthGate> {
       future: _loggedInFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: FantasyBackground(
+              light: false,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ZenviaLogo(scale: .85),
+                    SizedBox(height: 22),
+                    CircularProgressIndicator(color: Colors.white),
+                  ],
+                ),
+              ),
+            ),
+          );
         }
 
         if (!snapshot.data!) {
@@ -113,6 +135,7 @@ class ChildRootShell extends StatefulWidget {
 class _ChildRootShellState extends State<ChildRootShell> {
   int _index = 0;
   int _homeRevision = 0;
+  int _languageRevision = 0;
   bool _allowPop = false;
   bool _exitInProgress = false;
 
@@ -170,6 +193,65 @@ class _ChildRootShellState extends State<ChildRootShell> {
     });
   }
 
+  void _onLanguageChanged() {
+    if (!mounted) return;
+    setState(() {
+      // Пересоздаём скрытые экраны, зависящие от языка.
+      _languageRevision++;
+    });
+    _openAdventureChoice();
+  }
+
+  Future<void> _openAdventureChoice() async {
+    while (mounted) {
+      final destination = await Navigator.of(context).push<AdventureDestination>(
+        MaterialPageRoute(
+          builder: (_) => AdventureChoiceScreen(repository: appRepository),
+        ),
+      );
+
+      if (!mounted) return;
+
+      // Закрытие экрана пещер кнопкой Back всегда возвращает ребёнка
+      // на главный экран выбора языка. Это одинаково работает независимо
+      // от того, открыли пещеры после выбора языка или со страницы тем.
+      if (destination == null) {
+        setState(() {
+          _index = 0;
+          _homeRevision++;
+        });
+        return;
+      }
+
+      switch (destination) {
+        case AdventureDestination.learn:
+          setState(() => _index = 1);
+          return;
+        case AdventureDestination.play:
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => LearnedWordsGamesScreen(repository: appRepository),
+            ),
+          );
+          if (!mounted) return;
+          break;
+        case AdventureDestination.smart:
+          final language = await appRepository.getSelectedLanguage();
+          if (!mounted) return;
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => SmartContentScreen(
+                repository: appRepository,
+                language: language,
+              ),
+            ),
+          );
+          if (!mounted) return;
+          break;
+      }
+    }
+  }
+
   void _onNavTap(int index) {
     setState(() {
       if (index == 0) _homeRevision++;
@@ -185,19 +267,38 @@ class _ChildRootShellState extends State<ChildRootShell> {
         repository: appRepository,
         onOpenSettings: _openSettings,
         onSeeAllTopics: () => _onNavTap(1),
+        onLanguageChanged: _onLanguageChanged,
       ),
-      TopicsScreen(repository: appRepository),
+      TopicsScreen(
+        key: ValueKey('topics-language-$_languageRevision'),
+        repository: appRepository,
+        gameRepository: gameRepository,
+        onBack: () => _openAdventureChoice(),
+      ),
       GamesScreen(
+        key: ValueKey('games-language-$_languageRevision'),
         appRepository: appRepository,
         gameRepository: gameRepository,
       ),
-      AchievementsScreen(repository: appRepository),
+      AchievementsScreen(
+        key: ValueKey('achievements-language-$_languageRevision'),
+        repository: appRepository,
+      ),
     ];
 
     return PopScope(
       canPop: _allowPop,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
+
+        // Если ребёнок находится на экране тем, системная кнопка
+        // «Назад» должна вернуть его к выбору пещеры, а не к выбору языка
+        // и не выводить сразу в родительский кабинет.
+        if (_index == 1) {
+          _openAdventureChoice();
+          return;
+        }
+
         _leaveChildMode();
       },
       child: Scaffold(

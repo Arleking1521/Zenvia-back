@@ -1,9 +1,13 @@
 import '../models/achievement.dart';
+import '../models/dragon_evolution.dart';
+import '../models/learned_word.dart';
+import '../models/literary_content.dart';
 import '../models/language.dart';
 import '../models/topic.dart';
 
 abstract class AppRepository {
   Future<List<Topic>> getTopics();
+  Future<List<LanguageOption>> getAvailableLanguages();
   Future<List<Achievement>> getAchievements();
 
   Future<AppLanguage> getSelectedLanguage();
@@ -12,4 +16,9 @@ abstract class AppRepository {
   Future<int> getXp();
   Future<int> getLevel();
   Future<String> getChildName();
+  Future<String?> getLevelDragonUrl();
+  Future<DragonEvolutionData> getDragonEvolution();
+  Future<List<LearnedWord>> getLearnedWordsAllLanguages();
+  Future<List<LiteraryContentItem>> getLiteraryContent(AppLanguage language);
+  Future<void> markLiteraryContentListened(int contentId);
 }

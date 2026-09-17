@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import '../data/game_repository.dart';
 import '../models/game.dart';
 import '../theme/app_colors.dart';
+import '../widgets/magic_ui.dart';
+import 'game_result_screen.dart';
 
 class GamePlayScreen extends StatefulWidget {
   final GameRepository repository;
@@ -250,48 +252,23 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   }
 
   Future<void> _finish() async {
-    setState(() => _loading = true);
+    if (mounted) {
+      setState(() => _loading = true);
+    }
+
     try {
       final result = await widget.repository.finishGame(widget.session.id);
       if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) {
-          return AlertDialog(
-            title: const Text('Игра завершена! 🎉'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _ResultRow(
-                  label: 'Правильных',
-                  value: '${result.session.correctCount}',
-                ),
-                _ResultRow(
-                  label: 'Ошибок',
-                  value: '${result.session.wrongCount}',
-                ),
-                _ResultRow(
-                  label: 'Получено XP',
-                  value: '+${result.session.xpEarned}',
-                ),
-                const Divider(),
-                _ResultRow(
-                  label: 'Всего XP',
-                  value: '${result.totalXp}',
-                ),
-              ],
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Готово'),
-              ),
-            ],
-          );
-        },
+
+      Navigator.of(context).pushReplacement<bool, bool>(
+        MaterialPageRoute<bool>(
+          builder: (_) => GameResultScreen(
+            result: result,
+            topicTitle: widget.topicTitle,
+          ),
+        ),
+        result: true,
       );
-      if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -304,19 +281,44 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        title: Text(widget.topicTitle),
-      ),
-      body: SafeArea(
-        top: false,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? _ErrorView(message: _error!, onRetry: _loadNext)
-                : _buildQuestion(),
+      body: FantasyBackground(
+        light: false,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+                child: Row(
+                  children: [
+                    Material(
+                      color: Colors.white.withValues(alpha: .95),
+                      shape: const CircleBorder(),
+                      child: IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.arrow_back_rounded, color: AppColors.deepBlue),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        widget.topicTitle,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 21),
+                      ),
+                    ),
+                    const Text('🎮', style: TextStyle(fontSize: 26)),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: _loading
+                    ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                    : _error != null
+                        ? _ErrorView(message: _error!, onRetry: _loadNext)
+                        : _buildQuestion(),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -341,16 +343,15 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                     value: question.total == 0
                         ? 0
                         : question.sequence / question.total,
-                    backgroundColor: AppColors.trackGrey,
-                    valueColor:
-                        const AlwaysStoppedAnimation(AppColors.primary),
+                    backgroundColor: Colors.white24,
+                    valueColor: const AlwaysStoppedAnimation(AppColors.gold),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Text(
                 '${question.sequence}/${question.total}',
-                style: const TextStyle(fontWeight: FontWeight.w700),
+                style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
               ),
             ],
           ),
@@ -358,9 +359,11 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            child: question.gameType == GameType.matching
-                ? _buildMatching(question)
-                : _buildSingleChoice(question),
+            child: MagicCard(
+              child: question.gameType == GameType.matching
+                  ? _buildMatching(question)
+                  : _buildSingleChoice(question),
+            ),
           ),
         ),
         if (_answerResult != null)

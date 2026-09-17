@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/achievement.dart';
+import '../models/dragon_evolution.dart';
+import '../models/learned_word.dart';
+import '../models/literary_content.dart';
 import '../models/language.dart';
 import '../models/topic.dart';
 import '../theme/app_colors.dart';
@@ -17,6 +20,219 @@ class ApiAppRepository implements AppRepository {
   final ApiClient client;
 
   ApiAppRepository(this.client);
+
+  @override
+  Future<List<LanguageOption>> getAvailableLanguages() async {
+    final rows = await _getList(ApiConfig.api('languages/'));
+    final result = <LanguageOption>[];
+
+    for (final raw in rows) {
+      final row = _asMap(raw);
+      if (row == null) continue;
+
+      final code = row['code']?.toString().trim() ?? '';
+      final title = row['title']?.toString().trim() ?? '';
+      if (code.isEmpty || title.isEmpty) continue;
+
+      final icon = ApiConfig.absoluteMediaUrl(row['icon']?.toString());
+
+      result.add(
+        LanguageOption(
+          id: _asInt(row['id']),
+          code: code,
+          title: title,
+          iconUrl: icon.isEmpty ? null : icon,
+        ),
+      );
+    }
+
+    return result;
+  }
+
+
+  @override
+  Future<List<LearnedWord>> getLearnedWordsAllLanguages() async {
+    final results = await Future.wait<dynamic>([
+      _getList(ApiConfig.api('progress/')),
+      _getList(ApiConfig.api('words/')),
+      _getList(ApiConfig.api('concepts/')),
+    ]);
+
+    final progressRows = results[0] as List<dynamic>;
+    final wordRows = results[1] as List<dynamic>;
+    final conceptRows = results[2] as List<dynamic>;
+
+    final learnedKeys = <String>{};
+    for (final raw in progressRows) {
+      final row = _asMap(raw);
+      if (row == null || _asInt(row['mastery']) < 5) continue;
+      final conceptId = _asInt(row['concept']);
+      final languageId = _asInt(row['language']);
+      if (conceptId > 0 && languageId > 0) {
+        learnedKeys.add('$conceptId:$languageId');
+      }
+    }
+
+    final imageByConcept = <int, String?>{};
+    for (final raw in conceptRows) {
+      final row = _asMap(raw);
+      if (row == null) continue;
+      final conceptId = _asInt(row['id']);
+      final image = ApiConfig.absoluteMediaUrl(row['image']?.toString());
+      imageByConcept[conceptId] = image.isEmpty ? null : image;
+    }
+
+    final result = <LearnedWord>[];
+    for (final raw in wordRows) {
+      final row = _asMap(raw);
+      if (row == null) continue;
+
+      final wordId = _asInt(row['id']);
+      final conceptId = _asInt(row['concept']);
+      final languageId = _asInt(row['language']);
+      if (!learnedKeys.contains('$conceptId:$languageId')) continue;
+
+      final text = row['text']?.toString().trim() ?? '';
+      final code = row['language_code']?.toString();
+      final language = AppLanguageX.tryFromApiCode(code);
+      if (wordId <= 0 || conceptId <= 0 || text.isEmpty || language == null) {
+        continue;
+      }
+
+      final audio = ApiConfig.absoluteMediaUrl(row['audio']?.toString());
+      final transcription = row['transcription']?.toString().trim();
+
+      result.add(
+        LearnedWord(
+          wordId: wordId,
+          conceptId: conceptId,
+          language: language,
+          text: text,
+          transcription: transcription == null || transcription.isEmpty
+              ? null
+              : transcription,
+          imageUrl: imageByConcept[conceptId],
+          audioUrl: audio.isEmpty ? null : audio,
+        ),
+      );
+    }
+
+    result.shuffle(Random());
+    return result;
+  }
+
+  @override
+  Future<List<LiteraryContentItem>> getLiteraryContent(
+    AppLanguage language,
+  ) async {
+    final rows = await _getList(
+      ApiConfig.api('literary-content/'),
+      queryParameters: {'language': language.apiCode},
+    );
+
+    final result = <LiteraryContentItem>[];
+    for (final raw in rows) {
+      final row = _asMap(raw);
+      if (row == null) continue;
+
+      final image = ApiConfig.absoluteMediaUrl(row['image']?.toString());
+      final audio = ApiConfig.absoluteMediaUrl(row['audio']?.toString());
+      final title = row['title']?.toString().trim();
+      final author = row['author']?.toString().trim();
+
+      result.add(
+        LiteraryContentItem(
+          id: _asInt(row['id']),
+          title: title == null || title.isEmpty
+              ? LiteraryContentTypeX.fromApiCode(
+                  row['content_type']?.toString(),
+                ).title
+              : title,
+          text: row['text']?.toString() ?? '',
+          type: LiteraryContentTypeX.fromApiCode(
+            row['content_type']?.toString(),
+          ),
+          language: AppLanguageX.fromApiCode(
+            row['language_code']?.toString(),
+          ),
+          imageUrl: image.isEmpty ? null : image,
+          audioUrl: audio.isEmpty ? null : audio,
+          author: author == null || author.isEmpty ? null : author,
+          difficulty: row['difficulty']?.toString() ?? '',
+        ),
+      );
+    }
+
+    return result;
+  }
+
+  @override
+  Future<void> markLiteraryContentListened(int contentId) async {
+    try {
+      await client.dio.post<dynamic>(
+        ApiConfig.api('content-progress/listen/'),
+        data: {'content': contentId},
+      );
+    } on DioException catch (e) {
+      throw AppApiException(_dioMessage(e));
+    }
+  }
+
+
+  @override
+  Future<DragonEvolutionData> getDragonEvolution() async {
+    final current = await _getMap(ApiConfig.api('levels/current/'));
+    final levelRows = await _getList(ApiConfig.api('levels/'));
+
+    DragonLevel? parseLevel(dynamic raw) {
+      final row = _asMap(raw);
+      if (row == null) return null;
+
+      final icon = ApiConfig.absoluteMediaUrl(row['icon']?.toString());
+      return DragonLevel(
+        id: _asInt(row['id']),
+        number: _asInt(row['number']),
+        title: row['title']?.toString() ?? 'Уровень',
+        xpRequired: _asInt(row['xp_required']),
+        iconUrl: icon.isEmpty ? null : icon,
+      );
+    }
+
+    final levels = <DragonLevel>[];
+    for (final raw in levelRows) {
+      final level = parseLevel(raw);
+      if (level != null) levels.add(level);
+    }
+    levels.sort((a, b) => a.number.compareTo(b.number));
+
+    return DragonEvolutionData(
+      totalXp: _asInt(current['total_xp']),
+      currentLevel: parseLevel(current['current_level']),
+      nextLevel: parseLevel(current['next_level']),
+      xpToNextLevel: _asInt(current['xp_to_next_level']),
+      levels: levels,
+    );
+  }
+
+  @override
+  Future<String?> getLevelDragonUrl() async {
+    final current = await _getMap(ApiConfig.api('levels/current/'));
+    final currentLevel = _asMap(current['current_level']);
+    final currentIcon = ApiConfig.absoluteMediaUrl(
+      currentLevel?['icon']?.toString(),
+    );
+    if (currentIcon.isNotEmpty) return currentIcon;
+
+    final levels = await _getList(ApiConfig.api('levels/'));
+    if (levels.isNotEmpty) {
+      final first = _asMap(levels.first);
+      final firstIcon = ApiConfig.absoluteMediaUrl(
+        first?['icon']?.toString(),
+      );
+      if (firstIcon.isNotEmpty) return firstIcon;
+    }
+    return null;
+  }
 
   @override
   Future<String> getChildName() async {

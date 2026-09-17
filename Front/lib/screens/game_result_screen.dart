@@ -1,0 +1,245 @@
+import 'package:flutter/material.dart';
+
+import '../models/game.dart';
+import '../theme/app_colors.dart';
+import '../widgets/magic_ui.dart';
+
+class GameResultScreen extends StatelessWidget {
+  final GameFinishResult result;
+  final String topicTitle;
+
+  const GameResultScreen({
+    super.key,
+    required this.result,
+    required this.topicTitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final session = result.session;
+    final totalAnswers = session.correctCount + session.wrongCount;
+    final accuracy = totalAnswers == 0
+        ? 0
+        : ((session.correctCount / totalAnswers) * 100).round();
+
+    return Scaffold(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/images/reward_star_clean.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+          ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0x16000000),
+                  Color(0x00000000),
+                  Color(0x22042F54),
+                  Color(0x70042F54),
+                ],
+                stops: [0, .36, .70, 1],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 40,
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Отличная работа!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.deepBlue,
+                            fontSize: 34,
+                            height: 1.02,
+                            fontWeight: FontWeight.w900,
+                            shadows: const [
+                              Shadow(
+                                color: Colors.white,
+                                blurRadius: 16,
+                              ),
+                              Shadow(
+                                color: Colors.white70,
+                                blurRadius: 4,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Твой дракон становится сильнее!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.deepBlue.withValues(alpha: .96),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            shadows: const [
+                              Shadow(color: Colors.white, blurRadius: 10),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          topicTitle,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            shadows: [
+                              Shadow(color: Color(0xAA083C70), blurRadius: 8),
+                            ],
+                          ),
+                        ),
+
+                        // Оставляем центральную часть изображения свободной,
+                        // чтобы дракончик оставался главным визуальным акцентом.
+                        SizedBox(height: constraints.maxHeight * .43),
+
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: .92),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: .95),
+                              width: 1.5,
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x29083C70),
+                                blurRadius: 24,
+                                offset: Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  _ResultMetric(
+                                    icon: '✅',
+                                    value: '${session.correctCount}',
+                                    label: 'Правильно',
+                                  ),
+                                  _ResultMetric(
+                                    icon: '🎯',
+                                    value: '$accuracy%',
+                                    label: 'Точность',
+                                  ),
+                                  _ResultMetric(
+                                    icon: '⭐',
+                                    value: '+${session.xpEarned}',
+                                    label: 'XP',
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              Container(
+                                height: 1,
+                                color: AppColors.deepBlue.withValues(alpha: .10),
+                              ),
+                              const SizedBox(height: 13),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Всего XP',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${result.totalXp}',
+                                    style: const TextStyle(
+                                      color: AppColors.deepBlue,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 22,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: MagicPrimaryButton(
+                            label: 'На главную',
+                            icon: Icons.home_rounded,
+                            onPressed: () => Navigator.of(context).pop(true),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResultMetric extends StatelessWidget {
+  final String icon;
+  final String value;
+  final String label;
+
+  const _ResultMetric({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 24)),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: const TextStyle(
+              color: AppColors.deepBlue,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -53,17 +53,39 @@ extension AppLanguageX on AppLanguage {
     }
   }
 
-  static AppLanguage fromApiCode(String? code) {
+  static AppLanguage? tryFromApiCode(String? code) {
     switch (code) {
+      case 'en':
+        return AppLanguage.english;
       case 'zh':
         return AppLanguage.chinese;
       case 'kk':
         return AppLanguage.kazakh;
       case 'ru':
         return AppLanguage.russian;
-      case 'en':
       default:
-        return AppLanguage.english;
+        return null;
     }
   }
+
+  static AppLanguage fromApiCode(String? code) {
+    return tryFromApiCode(code) ?? AppLanguage.english;
+  }
 }
+
+class LanguageOption {
+  final int id;
+  final String code;
+  final String title;
+  final String? iconUrl;
+
+  const LanguageOption({
+    required this.id,
+    required this.code,
+    required this.title,
+    this.iconUrl,
+  });
+
+  AppLanguage? get appLanguage => AppLanguageX.tryFromApiCode(code);
+}
+

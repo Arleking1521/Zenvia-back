@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../models/topic.dart';
 import '../theme/app_colors.dart';
-import 'progress_bar.dart';
 
 class TopicCard extends StatelessWidget {
   final Topic topic;
@@ -18,74 +17,164 @@ class TopicCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(28),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceWhite,
-          borderRadius: BorderRadius.circular(28),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: topic.color.withOpacity(0.18),
-                shape: BoxShape.circle,
-              ),
-              clipBehavior: Clip.antiAlias,
-              alignment: Alignment.center,
-              child: _TopicIcon(topic: topic),
+    final titleSize = compact ? 15.0 : 18.0;
+    final subtitleSize = compact ? 11.0 : 12.0;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(32),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(32),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                topic.color.withValues(alpha: .92),
+                topic.color.withValues(alpha: .72),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    topic.number > 0
-                        ? '${topic.number}. ${topic.title}'
-                        : topic.title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    topic.description,
-                    style: Theme.of(context).textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (!compact) ...[
-                    const SizedBox(height: 8),
-                    AppProgressBar(progress: topic.progress),
-                  ],
-                ],
-              ),
-            ),
-            if (compact) ...[
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.check_circle_outline_rounded,
-                color: AppColors.primary,
-                size: 18,
-              ),
-              const SizedBox(width: 2),
-              Text(
-                '${topic.learnedCount}/${topic.totalCount}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
+            boxShadow: [
+              BoxShadow(
+                color: topic.color.withValues(alpha: .24),
+                blurRadius: 22,
+                offset: const Offset(0, 12),
               ),
             ],
-          ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: .26),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text(
+                          topic.isCompleted ? 'Завершено' : '${topic.learnedCount}/${topic.totalCount} слов',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .92),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        topic.isCompleted ? Icons.star_rounded : Icons.arrow_forward_rounded,
+                        color: topic.isCompleted ? AppColors.goldDark : AppColors.deepBlue,
+                        size: topic.isCompleted ? 20 : 18,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: compact ? 10 : 16),
+                Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: compact ? 86 : 96,
+                    height: compact ? 86 : 96,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .92),
+                      shape: BoxShape.circle,
+                    ),
+                    child: _TopicIcon(topic: topic),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  topic.number > 0 ? '${topic.number}. ${topic.title}' : topic.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: titleSize,
+                    height: 1.05,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  topic.description.isNotEmpty ? topic.description : 'Учи новые слова вместе с дракончиком',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: .92),
+                    fontSize: subtitleSize,
+                    height: 1.2,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .22),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(99),
+                        child: LinearProgressIndicator(
+                          value: topic.progress,
+                          minHeight: 9,
+                          backgroundColor: Colors.white.withValues(alpha: .35),
+                          valueColor: const AlwaysStoppedAnimation(Colors.white),
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              topic.isCompleted ? 'Отличная работа!' : 'Прогресс обучения',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: .96),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${(topic.progress * 100).round()}%',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -94,28 +183,20 @@ class TopicCard extends StatelessWidget {
 
 class _TopicIcon extends StatelessWidget {
   final Topic topic;
-
   const _TopicIcon({required this.topic});
 
   @override
   Widget build(BuildContext context) {
     final url = topic.iconUrl;
-
     if (url == null || url.isEmpty) {
-      return Text(
-        topic.emoji,
-        style: const TextStyle(fontSize: 26),
-      );
+      return FittedBox(child: Text(topic.emoji, style: const TextStyle(fontSize: 42)));
     }
-
-    return Image.network(
-      url,
-      width: 52,
-      height: 52,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => Text(
-        topic.emoji,
-        style: const TextStyle(fontSize: 26),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => FittedBox(child: Text(topic.emoji, style: const TextStyle(fontSize: 42))),
       ),
     );
   }
