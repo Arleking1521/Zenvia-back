@@ -177,6 +177,81 @@ class GameResultScreen extends StatelessWidget {
                                   ),
                                 ],
                               ),
+                              if (result.dailyXpLimit > 0) ...[
+                                const SizedBox(height: 14),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'XP сегодня',
+                                      style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${result.dailyXp}/${result.dailyXpLimit}',
+                                      style: const TextStyle(
+                                        color: AppColors.deepBlue,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(99),
+                                  child: LinearProgressIndicator(
+                                    value: result.dailyProgress,
+                                    minHeight: 10,
+                                    backgroundColor: AppColors.deepBlue.withValues(alpha: .10),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      result.dailyLimitReached
+                                          ? const Color(0xFFFFB52E)
+                                          : const Color(0xFF28C76F),
+                                    ),
+                                  ),
+                                ),
+                                if (result.xpRequested > result.xpGranted) ...[
+                                  const SizedBox(height: 10),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 9,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF3D9),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: Text(
+                                      result.dailyLimitReached
+                                          ? 'Дневная цель XP выполнена. Можно продолжать играть без прокачки.'
+                                          : 'Дневной лимит уменьшил награду: +${result.xpRequested} → +${result.xpGranted} XP',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Color(0xFF8C5A00),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        height: 1.25,
+                                      ),
+                                    ),
+                                  ),
+                                ] else if (result.dailyLimitReached) ...[
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    '🌟 Дневная цель XP выполнена!',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Color(0xFF8C5A00),
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ],
                           ),
                         ),

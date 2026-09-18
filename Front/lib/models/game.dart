@@ -185,11 +185,28 @@ class GameAnswerResult {
 class GameFinishResult {
   final GameSessionData session;
   final int totalXp;
+  final int xpRequested;
+  final int xpGranted;
+  final int dailyXp;
+  final int dailyXpLimit;
+  final int dailyXpRemaining;
+  final bool dailyLimitReached;
 
   const GameFinishResult({
     required this.session,
     required this.totalXp,
+    required this.xpRequested,
+    required this.xpGranted,
+    required this.dailyXp,
+    required this.dailyXpLimit,
+    required this.dailyXpRemaining,
+    required this.dailyLimitReached,
   });
+
+  double get dailyProgress {
+    if (dailyXpLimit <= 0) return 1;
+    return (dailyXp / dailyXpLimit).clamp(0.0, 1.0).toDouble();
+  }
 }
 
 class GameStartRequest {

@@ -239,6 +239,37 @@ class GameQuestion(models.Model):
         return f'Сессия #{self.session_id}, раунд {self.sequence}'
 
 
+class DailyXP(models.Model):
+    """Сколько XP ребёнок фактически получил за конкретный календарный день."""
+    profile = models.ForeignKey(
+        'account.ChildProfile',
+        on_delete=models.CASCADE,
+        related_name='daily_xp_records',
+        verbose_name='Профиль ребёнка',
+    )
+    date = models.DateField(verbose_name='Дата')
+    earned_xp = models.PositiveIntegerField(default=0, verbose_name='XP за день')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создано')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
+
+    class Meta:
+        verbose_name = 'Дневной XP'
+        verbose_name_plural = 'Дневной XP'
+        ordering = ['-date', '-id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['profile', 'date'],
+                name='unique_profile_daily_xp',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['profile', 'date'], name='daily_xp_profile_date_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.profile}: {self.date} — {self.earned_xp} XP'
+
+
 class Achievement(models.Model):
     CONDITION_TYPES_CHOICES = (
         ('words_learned', 'Выучено слов'),

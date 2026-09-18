@@ -13,7 +13,6 @@ import 'models/child_profile.dart';
 import 'screens/achievements_screen.dart';
 import 'screens/adventure_choice_screen.dart';
 import 'screens/child_settings_screen.dart';
-import 'screens/games_screen.dart';
 import 'screens/learned_words_games_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/parent_dashboard_screen.dart';
@@ -23,7 +22,6 @@ import 'screens/smart_content_screen.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 import 'widgets/adaptive_app_viewport.dart';
-import 'widgets/bottom_nav.dart';
 import 'widgets/parent_pin_dialog.dart';
 import 'widgets/magic_ui.dart';
 
@@ -259,6 +257,16 @@ class _ChildRootShellState extends State<ChildRootShell> {
     });
   }
 
+  Future<void> _openAchievements() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AchievementsScreen(
+          repository: appRepository,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screens = [
@@ -267,6 +275,7 @@ class _ChildRootShellState extends State<ChildRootShell> {
         repository: appRepository,
         onOpenSettings: _openSettings,
         onSeeAllTopics: () => _onNavTap(1),
+        onOpenAchievements: _openAchievements,
         onLanguageChanged: _onLanguageChanged,
       ),
       TopicsScreen(
@@ -274,15 +283,6 @@ class _ChildRootShellState extends State<ChildRootShell> {
         repository: appRepository,
         gameRepository: gameRepository,
         onBack: () => _openAdventureChoice(),
-      ),
-      GamesScreen(
-        key: ValueKey('games-language-$_languageRevision'),
-        appRepository: appRepository,
-        gameRepository: gameRepository,
-      ),
-      AchievementsScreen(
-        key: ValueKey('achievements-language-$_languageRevision'),
-        repository: appRepository,
       ),
     ];
 
@@ -304,10 +304,6 @@ class _ChildRootShellState extends State<ChildRootShell> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: IndexedStack(index: _index, children: screens),
-        bottomNavigationBar: AppBottomNav(
-          currentIndex: _index,
-          onTap: _onNavTap,
-        ),
       ),
     );
   }

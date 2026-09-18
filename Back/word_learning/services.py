@@ -1,5 +1,7 @@
 from django.db.models import Sum
 
+from .xp_services import award_xp
+
 from .models import (
     Achievement,
     ProfileAchievement,
@@ -184,15 +186,11 @@ def check_achievements(profile):
             if not created:
                 continue
 
-            profile.total_xp += achievement.xp_reward
+            # Награда достижения тоже проходит через общий дневной лимит XP.
+            award_xp(profile, achievement.xp_reward)
 
             new_achievements.append(
                 achievement
             )
-
-    if new_achievements:
-        profile.save(
-            update_fields=['total_xp']
-        )
 
     return new_achievements

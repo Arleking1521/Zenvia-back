@@ -132,9 +132,26 @@ class ApiGameRepository implements GameRepository {
         data: const <String, dynamic>{},
       );
       final data = response.data ?? const {};
+      final session = _session(_map(data['game']) ?? const {});
       return GameFinishResult(
-        session: _session(_map(data['game']) ?? const {}),
+        session: session,
         totalXp: _int(data['total_xp']),
+        xpRequested: data.containsKey('xp_requested')
+            ? _int(data['xp_requested'])
+            : session.xpEarned,
+        xpGranted: data.containsKey('xp_granted')
+            ? _int(data['xp_granted'])
+            : session.xpEarned,
+        dailyXp: data.containsKey('daily_xp')
+            ? _int(data['daily_xp'])
+            : session.xpEarned,
+        dailyXpLimit: data.containsKey('daily_xp_limit')
+            ? _int(data['daily_xp_limit'])
+            : 0,
+        dailyXpRemaining: data.containsKey('daily_xp_remaining')
+            ? _int(data['daily_xp_remaining'])
+            : 0,
+        dailyLimitReached: data['daily_limit_reached'] == true,
       );
     } on DioException catch (e) {
       throw GameApiException(_message(e));

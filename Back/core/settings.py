@@ -218,3 +218,5 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:3003',
 ]
 
+DAILY_XP_LIMIT = int(os.getenv('DAILY_XP_LIMIT', '100'))
+DAILY_XP_TIMEZONE = os.getenv('DAILY_XP_TIMEZONE', 'Asia/Almaty')

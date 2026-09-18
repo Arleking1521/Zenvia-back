@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../data/app_repository.dart';
@@ -10,6 +12,7 @@ class HomeScreen extends StatefulWidget {
   final AppRepository repository;
   final VoidCallback onOpenSettings;
   final VoidCallback onSeeAllTopics;
+  final VoidCallback onOpenAchievements;
   final VoidCallback? onLanguageChanged;
 
   const HomeScreen({
@@ -17,6 +20,7 @@ class HomeScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenSettings,
     required this.onSeeAllTopics,
+    required this.onOpenAchievements,
     this.onLanguageChanged,
   });
 
@@ -25,32 +29,55 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late Future<_HomeData> _homeFuture;
+  late Future<List<LanguageOption>> _languagesFuture;
   AppLanguage _selectedLanguage = AppLanguage.english;
+  String? _levelDragonUrl;
 
   @override
   void initState() {
     super.initState();
-    _homeFuture = _load();
+    _languagesFuture = _load();
   }
 
-  Future<_HomeData> _load() async {
+  Future<List<LanguageOption>> _load() async {
     final selected = await widget.repository.getSelectedLanguage();
-    final results = await Future.wait<dynamic>([
-      widget.repository.getAvailableLanguages(),
-      widget.repository.getLevelDragonUrl(),
-    ]);
+    final languages = await widget.repository.getAvailableLanguages();
 
-    if (mounted) {
-      setState(() => _selectedLanguage = selected);
-    } else {
-      _selectedLanguage = selected;
+    String? dragonUrl;
+    try {
+      dragonUrl = await widget.repository.getLevelDragonUrl();
+    } catch (_) {
+      // Если картинку уровня временно не удалось получить,
+      // ниже останется локальный fallback-дракончик.
     }
 
-    return _HomeData(
-      languages: results[0] as List<LanguageOption>,
-      levelDragonUrl: results[1] as String?,
+    if (mounted) {
+      setState(() {
+        _selectedLanguage = selected;
+        _levelDragonUrl = dragonUrl;
+      });
+    } else {
+      _selectedLanguage = selected;
+      _levelDragonUrl = dragonUrl;
+    }
+    return languages;
+  }
+
+  Future<void> _openDragonEvolution() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DragonEvolutionScreen(repository: widget.repository),
+      ),
     );
+
+    // После возврата обновляем изображение: уровень мог измениться.
+    try {
+      final url = await widget.repository.getLevelDragonUrl();
+      if (!mounted) return;
+      setState(() => _levelDragonUrl = url);
+    } catch (_) {
+      // Сохраняем уже показанное изображение при временной ошибке сети.
+    }
   }
 
   Future<void> _selectLanguage(LanguageOption option) async {
@@ -67,11 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    if (language == _selectedLanguage) {
-      // Даже если язык уже выбран, нажатие на карточку ведёт сразу к темам.
-      widget.onLanguageChanged?.call();
-      return;
-    }
+    if (language == _selectedLanguage) return;
 
     // Сначала мгновенно меняем визуальное состояние карточки.
     // Главный экран при этом не пересоздаётся и не показывает loader.
@@ -95,13 +118,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _retry() {
-    setState(() => _homeFuture = _load());
+    setState(() => _languagesFuture = _load());
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_HomeData>(
-      future: _homeFuture,
+    return FutureBuilder<List<LanguageOption>>(
+      future: _languagesFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const ColoredBox(
@@ -119,8 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
 
-        final data = snapshot.data ?? const _HomeData();
-        final languages = data.languages;
+        final languages = snapshot.data ?? const <LanguageOption>[];
 
         return ColoredBox(
           color: const Color(0xFF7ED8F4),
@@ -150,62 +172,113 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               SafeArea(
                 bottom: false,
-                child: RefreshIndicator(
-                  color: AppColors.primary,
-                  onRefresh: () async {
-                    setState(() => _homeFuture = _load());
-                    await _homeFuture;
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final height = constraints.maxHeight;
+                    final width = constraints.maxWidth;
+                    final dragonSize = math.min(
+                      width * .66,
+                      height * .30,
+                    ).clamp(190.0, 270.0).toDouble();
+
+                    return RefreshIndicator(
+                      color: AppColors.primary,
+                      onRefresh: () async {
+                        setState(() => _languagesFuture = _load());
+                        await _languagesFuture;
+                      },
+                      child: CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Positioned(
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: _TopBar(
+                                      onSettings: widget.onOpenSettings,
+                                      onAchievements: widget.onOpenAchievements,
+                                    ),
+                                  ),
+                                  const Positioned(
+                                    top: 58,
+                                    left: 0,
+                                    right: 0,
+                                    child: Text(
+                                      'Выбери язык',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 25,
+                                        fontWeight: FontWeight.w900,
+                                        shadows: [
+                                          Shadow(
+                                            color: Color(0x990E3B7D),
+                                            blurRadius: 7,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Кнопки языков находятся ровно в средней
+                                  // части экрана по высоте.
+                                  Align(
+                                    alignment: const Alignment(0, -0.10),
+                                    child: languages.isEmpty
+                                        ? const _EmptyLanguages()
+                                        : Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              for (var i = 0; i < languages.length; i++) ...[
+                                                _LanguageChoiceCard(
+                                                  language: languages[i],
+                                                  selected: languages[i].appLanguage == _selectedLanguage,
+                                                  onTap: () => _selectLanguage(languages[i]),
+                                                ),
+                                                if (i != languages.length - 1)
+                                                  const SizedBox(height: 10),
+                                              ],
+                                            ],
+                                          ),
+                                  ),
+
+                                  // Дракон текущего уровня. Положение оставляем
+                                  // прежним, но теперь картинка приходит с backend.
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 24,
+                                    child: Center(
+                                      child: GestureDetector(
+                                        onTap: _openDragonEvolution,
+                                        behavior: HitTestBehavior.opaque,
+                                        child: SizedBox(
+                                          width: dragonSize,
+                                          height: dragonSize,
+                                          child: _LevelDragonImage(
+                                            url: _levelDragonUrl,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
                   },
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 18),
-                    children: [
-                      _TopBar(onSettings: widget.onOpenSettings),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'Выбери язык',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 25,
-                          fontWeight: FontWeight.w900,
-                          shadows: [
-                            Shadow(
-                              color: Color(0x990E3B7D),
-                              blurRadius: 7,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      if (languages.isEmpty)
-                        const _EmptyLanguages()
-                      else
-                        ...languages.map(
-                          (language) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _LanguageChoiceCard(
-                              language: language,
-                              selected: language.appLanguage == _selectedLanguage,
-                              onTap: () => _selectLanguage(language),
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 2),
-                      _LevelDragon(
-                        imageUrl: data.levelDragonUrl,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => DragonEvolutionScreen(
-                              repository: widget.repository,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
                 ),
               ),
             ],
@@ -216,47 +289,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+class _LevelDragonImage extends StatelessWidget {
+  final String? url;
 
-class _HomeData {
-  final List<LanguageOption> languages;
-  final String? levelDragonUrl;
-
-  const _HomeData({
-    this.languages = const <LanguageOption>[],
-    this.levelDragonUrl,
-  });
-}
-
-class _LevelDragon extends StatelessWidget {
-  final String? imageUrl;
-  final VoidCallback onTap;
-
-  const _LevelDragon({required this.imageUrl, required this.onTap});
+  const _LevelDragonImage({required this.url});
 
   @override
   Widget build(BuildContext context) {
-    final url = imageUrl;
+    final value = url?.trim();
 
-    return Center(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: SizedBox(
-          width: 265,
-          height: 265,
-          child: url == null || url.isEmpty
-              ? const Center(
-                  child: Text('🐉', style: TextStyle(fontSize: 120)),
-                )
-              : Image.network(
-                  url,
-                  fit: BoxFit.contain,
-                  gaplessPlayback: true,
-                  errorBuilder: (_, __, ___) => const Center(
-                    child: Text('🐉', style: TextStyle(fontSize: 120)),
-                  ),
-                ),
-        ),
+    if (value == null || value.isEmpty) {
+      return Image.asset(
+        'assets/images/home_language_dragon.png',
+        fit: BoxFit.contain,
+        alignment: Alignment.bottomCenter,
+      );
+    }
+
+    return Image.network(
+      value,
+      fit: BoxFit.contain,
+      alignment: Alignment.bottomCenter,
+      gaplessPlayback: true,
+      errorBuilder: (_, __, ___) => Image.asset(
+        'assets/images/home_language_dragon.png',
+        fit: BoxFit.contain,
+        alignment: Alignment.bottomCenter,
       ),
     );
   }
@@ -264,8 +322,12 @@ class _LevelDragon extends StatelessWidget {
 
 class _TopBar extends StatelessWidget {
   final VoidCallback onSettings;
+  final VoidCallback onAchievements;
 
-  const _TopBar({required this.onSettings});
+  const _TopBar({
+    required this.onSettings,
+    required this.onAchievements,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -289,13 +351,25 @@ class _TopBar extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        const Icon(
-          Icons.auto_awesome_rounded,
-          color: Colors.white,
-          size: 25,
-          shadows: [
-            Shadow(color: Color(0x660E3B7D), blurRadius: 7),
-          ],
+        Material(
+          color: const Color(0x332A85B7),
+          shape: const CircleBorder(),
+          child: InkWell(
+            onTap: onAchievements,
+            customBorder: const CircleBorder(),
+            child: const SizedBox(
+              width: 42,
+              height: 42,
+              child: Icon(
+                Icons.auto_awesome_rounded,
+                color: Colors.white,
+                size: 25,
+                shadows: [
+                  Shadow(color: Color(0x660E3B7D), blurRadius: 7),
+                ],
+              ),
+            ),
+          ),
         ),
       ],
     );

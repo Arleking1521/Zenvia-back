@@ -3,6 +3,7 @@ from django.db import transaction
 from django.utils import timezone
 from .services import check_achievements
 from .game_services import generate_question, serialize_question, submit_answer
+from .xp_services import award_xp, get_daily_xp_status
 from account.models import ChildProfile
 from account.services import get_child_profile
 from rest_framework import status
@@ -587,20 +588,23 @@ class GameSessionViewSet(CreateModelMixin, ListModelMixin, RetrieveModelMixin, G
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            xp = game.correct_count * 10
+            requested_xp = game.correct_count * 10
             if game.wrong_count == 0 and game.correct_count > 0:
-                xp += 30
+                requested_xp += 30
 
-            game.xp_earned = xp
+            child = ChildProfile.objects.select_for_update().get(pk=game.profile_id)
+            xp_award = award_xp(child, requested_xp)
+
+            # В GameSession сохраняем именно фактически начисленный XP,
+            # а не теоретическую награду до применения дневного лимита.
+            game.xp_earned = xp_award.granted_xp
             game.finished_at = timezone.now()
             game.save(update_fields=['xp_earned', 'finished_at'])
 
-            child = ChildProfile.objects.select_for_update().get(pk=game.profile_id)
-            child.total_xp += xp
-            child.save(update_fields=['total_xp'])
-
+            child.refresh_from_db(fields=['total_xp'])
             new_achievements = check_achievements(child)
             child.refresh_from_db(fields=['total_xp'])
+            daily_status = get_daily_xp_status(child)
 
             return Response({
                 'game': GameSessionSerializer(
@@ -608,6 +612,9 @@ class GameSessionViewSet(CreateModelMixin, ListModelMixin, RetrieveModelMixin, G
                     context={'request': request}
                 ).data,
                 'total_xp': child.total_xp,
+                'xp_requested': requested_xp,
+                'xp_granted': game.xp_earned,
+                **daily_status,
                 'new_achievements': AchievementSerializer(
                     new_achievements,
                     many=True,
@@ -673,6 +680,19 @@ class LevelViewSet(ReadOnlyModelViewSet):
                 else 0
             )
         })
+
+    @action(
+        detail=False,
+        methods=['get'],
+        url_path='daily-xp'
+    )
+    def daily_xp(self, request):
+        child = get_child_profile(request)
+        return Response({
+            'total_xp': child.total_xp,
+            **get_daily_xp_status(child),
+        })
+
 
 class AchievementViewSet(ReadOnlyModelViewSet):
     serializer_class = AchievementSerializer

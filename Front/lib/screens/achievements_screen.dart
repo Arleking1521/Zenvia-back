@@ -60,10 +60,31 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                           ),
                         ),
                       ),
+                      Positioned(
+                        left: 12,
+                        top: 12,
+                        child: Material(
+                          color: Colors.white.withValues(alpha: .20),
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            onTap: () => Navigator.of(context).pop(),
+                            customBorder: const CircleBorder(),
+                            child: const SizedBox(
+                              width: 42,
+                              height: 42,
+                              child: Icon(
+                                Icons.arrow_back_rounded,
+                                color: Colors.white,
+                                size: 26,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                       const Positioned(
-                        left: 18,
+                        left: 64,
                         top: 20,
-                        width: 190,
+                        width: 185,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
