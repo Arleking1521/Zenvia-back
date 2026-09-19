@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/app_repository.dart';
 import '../data/game_repository.dart';
 import '../models/game.dart';
+import '../models/daily_lesson.dart';
 import '../models/language.dart';
 import '../models/topic.dart';
 import '../theme/app_colors.dart';
@@ -48,11 +49,17 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
     if (_loadingDailyLesson) return;
     _loadingDailyLesson = true;
     try {
-      final plan = await DailyLessonService().loadPlan(
+      final plan = await DailyLessonService(widget.appRepository).loadPlan(
         topic: _topic,
         language: widget.language,
       );
       if (mounted) setState(() => _dailyLessonPlan = plan);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
     } finally {
       _loadingDailyLesson = false;
     }
@@ -75,7 +82,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
 
   Future<bool> _ensureDailyLessonComplete() async {
     var plan = _dailyLessonPlan;
-    plan ??= await DailyLessonService().loadPlan(
+    plan ??= await DailyLessonService(widget.appRepository).loadPlan(
       topic: _topic,
       language: widget.language,
     );
@@ -84,7 +91,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
 
     await _openDailyLesson();
     if (!mounted) return false;
-    final latest = await DailyLessonService().loadPlan(
+    final latest = await DailyLessonService(widget.appRepository).loadPlan(
       topic: _topic,
       language: widget.language,
     );

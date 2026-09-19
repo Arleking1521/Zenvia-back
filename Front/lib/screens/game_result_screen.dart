@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/game.dart';
+import '../services/background_music_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/magic_ui.dart';
 
@@ -22,8 +23,9 @@ class GameResultScreen extends StatelessWidget {
         ? 0
         : ((session.correctCount / totalAnswers) * 100).round();
 
-    return Scaffold(
-      body: Stack(
+    return BackgroundMusicSilence(
+      child: Scaffold(
+        body: Stack(
         fit: StackFit.expand,
         children: [
           Image.asset(
@@ -272,6 +274,7 @@ class GameResultScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

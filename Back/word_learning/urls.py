@@ -13,6 +13,7 @@ from .views import (
     AchievementViewSet,
     ProfileAchievementViewSet,
     LevelViewSet,
+    DailyWordLessonViewSet,
 )
 
 
@@ -58,6 +59,13 @@ router.register(
     'content-progress',
     ProfileContentProgressViewSet,
     basename='content-progress'
+)
+
+
+router.register(
+    'daily-lessons',
+    DailyWordLessonViewSet,
+    basename='daily-lessons'
 )
 
 router.register(

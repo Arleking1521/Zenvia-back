@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/achievement.dart';
 import '../models/dragon_evolution.dart';
+import '../models/daily_lesson.dart';
 import '../models/learned_word.dart';
 import '../models/literary_content.dart';
 import '../models/language.dart';
@@ -426,6 +427,106 @@ class ApiAppRepository implements AppRepository {
     return result;
   }
 
+
+  @override
+  Future<DailyLessonPlan> getDailyLesson({
+    required Topic topic,
+    required AppLanguage language,
+  }) async {
+    final topicId = int.tryParse(topic.id);
+    if (topicId == null) {
+      throw const AppApiException('Не удалось определить ID темы.');
+    }
+
+    final row = await _getMap(
+      ApiConfig.api('daily-lessons/current/'),
+      queryParameters: {
+        'topic': topicId,
+        'language': language.apiCode,
+      },
+    );
+    return _dailyLesson(row);
+  }
+
+  @override
+  Future<DailyLessonPlan> markDailyWordListened({
+    required int lessonId,
+    required String wordId,
+  }) async {
+    final conceptId = int.tryParse(wordId);
+    if (conceptId == null) {
+      throw const AppApiException('Не удалось определить ID слова.');
+    }
+
+    try {
+      final response = await client.dio.post<dynamic>(
+        ApiConfig.api('daily-lessons/$lessonId/listen/'),
+        data: {'concept': conceptId},
+      );
+      final row = _asMap(response.data);
+      if (row == null) {
+        throw const AppApiException('Сервер вернул неожиданный формат ежедневного урока.');
+      }
+      return _dailyLesson(row);
+    } on DioException catch (e) {
+      throw AppApiException(_dioMessage(e));
+    }
+  }
+
+  DailyLessonPlan _dailyLesson(Map<String, dynamic> row) {
+    final languageCode = row['language_code']?.toString();
+    final language = AppLanguageX.tryFromApiCode(languageCode);
+    if (language == null) {
+      throw AppApiException('Неизвестный язык ежедневного урока: $languageCode');
+    }
+
+    final words = <WordItem>[];
+    final studied = <String>{};
+    final rawItems = row['items'];
+
+    if (rawItems is List) {
+      for (final raw in rawItems) {
+        final item = _asMap(raw);
+        if (item == null) continue;
+        final conceptId = _asInt(item['concept']);
+        final word = _asMap(item['word']);
+        if (conceptId <= 0 || word == null) continue;
+
+        final text = word['text']?.toString() ?? '';
+        final audio = ApiConfig.absoluteMediaUrl(word['audio']?.toString());
+        final image = ApiConfig.absoluteMediaUrl(item['image']?.toString());
+        final transcription = word['transcription']?.toString().trim();
+
+        words.add(
+          WordItem(
+            id: conceptId.toString(),
+            translations: {language: text},
+            audioUrls: {language: audio.isEmpty ? null : audio},
+            transcriptions: {
+              language: transcription == null || transcription.isEmpty
+                  ? null
+                  : transcription,
+            },
+            imageUrl: image.isEmpty ? null : image,
+          ),
+        );
+
+        if (item['listened'] == true) {
+          studied.add(conceptId.toString());
+        }
+      }
+    }
+
+    return DailyLessonPlan(
+      lessonId: _asInt(row['id']),
+      words: words,
+      studiedWordIds: studied,
+      requiredCount: _asInt(row['required_count']),
+      isComplete: row['is_complete'] == true,
+      date: row['date']?.toString(),
+    );
+  }
+
   @override
   Future<List<Achievement>> getAchievements() async {
     final achievements = await _getList(ApiConfig.api('achievements/'));
@@ -752,9 +853,15 @@ class ApiAppRepository implements AppRepository {
     }
   }
 
-  Future<Map<String, dynamic>> _getMap(String path) async {
+  Future<Map<String, dynamic>> _getMap(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
     try {
-      final response = await client.dio.get<dynamic>(path);
+      final response = await client.dio.get<dynamic>(
+        path,
+        queryParameters: queryParameters,
+      );
       final map = _asMap(response.data);
       if (map == null) {
         throw const AppApiException('Сервер вернул неожиданный формат данных');

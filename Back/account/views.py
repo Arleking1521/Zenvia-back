@@ -1,3 +1,5 @@
+from django.db import transaction
+
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.generics import CreateAPIView
@@ -9,6 +11,7 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet, GenericV
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User, Avatar, ChildProfile, TariffPlan, Subscription
+from .services import get_child_profile_access
 from .serializers import (
     ParentRegisterSerializer,
     ParentLoginSerializer,
@@ -109,7 +112,23 @@ class ChildProfileViewSet(ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        child = serializer.save(parent=request.user)
+
+        # Lock the parent row so two concurrent requests cannot exceed the
+        # tariff's child-profile limit. The backend is the source of truth;
+        # the Flutter-side disabled button is only UX.
+        with transaction.atomic():
+            parent = User.objects.select_for_update().get(pk=request.user.pk)
+            access = get_child_profile_access(parent)
+            if not access['can_create_child']:
+                return Response(
+                    {
+                        'detail': access['reason'],
+                        'child_access': access,
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            child = serializer.save(parent=parent)
+
         return Response(
             ChildProfileSerializer(child, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
@@ -215,4 +234,5 @@ class DashboardView(APIView):
                 SubscriptionSerializer(current, context={'request': request}).data
                 if current else None
             ),
+            'child_access': get_child_profile_access(request.user),
         })

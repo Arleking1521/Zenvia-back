@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 
 import '../data/game_repository.dart';
 import '../models/game.dart';
+import '../services/audio_settings_service.dart';
+import '../services/background_music_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/magic_ui.dart';
 import 'game_result_screen.dart';
@@ -36,6 +38,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     ),
   );
   final Map<String, Uint8List> _audioCache = <String, Uint8List>{};
+  final Object _musicSilenceToken = Object();
 
   GameQuestionData? _question;
   GameAnswerResult? _answerResult;
@@ -45,19 +48,20 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   bool _playingAudio = false;
   String? _currentAudioUrl;
   int? _selectedAnswerId;
-  int? _selectedConceptId;
   final Map<int, int> _matchingPairs = {};
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    BackgroundMusicService.instance.silence(_musicSilenceToken);
     _loadNext();
   }
 
   @override
   void dispose() {
     _audioPlayer.dispose();
+    BackgroundMusicService.instance.unsilence(_musicSilenceToken);
     super.dispose();
   }
 
@@ -71,7 +75,6 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       _question = null;
       _answerResult = null;
       _selectedAnswerId = null;
-      _selectedConceptId = null;
       _matchingPairs.clear();
       _loadingAudio = false;
       _playingAudio = false;
@@ -85,10 +88,25 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
         await _finish();
         return;
       }
+      final loadedQuestion = next.question;
       setState(() {
-        _question = next.question;
+        _question = loadedQuestion;
         _loading = false;
       });
+
+      // Автоозвучка учебных заданий: ребёнок может ещё не уметь читать.
+      // Сразу произносим слово в трёх играх, где аудио помогает понять задание.
+      final autoPlayGame = loadedQuestion?.gameType == GameType.imageChoice ||
+          loadedQuestion?.gameType == GameType.wordChoice ||
+          loadedQuestion?.gameType == GameType.audioChoice;
+      final shouldAutoPlay = autoPlayGame &&
+          (loadedQuestion?.prompt?.audioUrl ?? '').trim().isNotEmpty;
+      if (shouldAutoPlay) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || _question?.id != loadedQuestion?.id) return;
+          _playAudio(restart: true, showError: false);
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -179,12 +197,18 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     return bytes;
   }
 
-  Future<void> _playAudio() async {
+  Future<void> _playAudio({
+    bool restart = false,
+    bool showError = true,
+  }) async {
     final url = _question?.prompt?.audioUrl?.trim();
     if (url == null || url.isEmpty || _loadingAudio) return;
 
     try {
-      if (_playingAudio && _currentAudioUrl == url) {
+      // Для обычного аудио-задания повторный тап оставляет прежнее
+      // поведение «остановить». Для слова в «Выбери картинку»
+      // restart=true всегда запускает произношение заново с начала.
+      if (!restart && _playingAudio && _currentAudioUrl == url) {
         await _audioPlayer.stop();
         if (!mounted) return;
         setState(() {
@@ -210,11 +234,13 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                   ? 'audio/ogg'
                   : 'audio/mpeg';
 
+      await AudioSettingsService.instance.load();
       await _audioPlayer.play(
         BytesSource(
           bytes,
           mimeType: mimeType,
         ),
+        volume: AudioSettingsService.instance.voiceVolume,
       );
 
       if (!mounted) return;
@@ -235,9 +261,11 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       final message = status == null
           ? 'Не удалось скачать аудио с сервера'
           : 'Сервер не отдал аудио (HTTP $status)';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      if (showError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -245,9 +273,11 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
         _playingAudio = false;
         _currentAudioUrl = null;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Не удалось воспроизвести аудио: $e')),
-      );
+      if (showError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось воспроизвести аудио: $e')),
+        );
+      }
     }
   }
 
@@ -428,14 +458,89 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     if (prompt == null) return const SizedBox.shrink();
     switch (prompt.kind) {
       case 'image':
-        return _NetworkPicture(url: prompt.imageUrl, size: 180);
+        final canRepeatAudio =
+            question.gameType == GameType.wordChoice &&
+            (prompt.audioUrl ?? '').trim().isNotEmpty;
+
+        if (!canRepeatAudio) {
+          return _NetworkPicture(url: prompt.imageUrl, size: 180);
+        }
+
+        return Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          child: InkWell(
+            onTap: !_loadingAudio
+                ? () => _playAudio(restart: true)
+                : null,
+            borderRadius: BorderRadius.circular(28),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      _NetworkPicture(url: prompt.imageUrl, size: 180),
+                      Container(
+                        margin: const EdgeInsets.all(8),
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryDark.withValues(alpha: .92),
+                          shape: BoxShape.circle,
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x33000000),
+                              blurRadius: 8,
+                              offset: Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: _loadingAudio
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.volume_up_rounded,
+                                  color: Colors.white,
+                                  size: 25,
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Нажми на картинку, чтобы услышать слово ещё раз',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
       case 'audio':
         final hasAudio = (prompt.audioUrl ?? '').trim().isNotEmpty;
         return Material(
           color: Colors.white,
           borderRadius: BorderRadius.circular(28),
           child: InkWell(
-            onTap: hasAudio && !_loadingAudio ? _playAudio : null,
+            onTap: hasAudio && !_loadingAudio
+                ? () => _playAudio(restart: true)
+                : null,
             borderRadius: BorderRadius.circular(28),
             child: Padding(
               padding: const EdgeInsets.all(28),
@@ -449,9 +554,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                     )
                   else
                     Icon(
-                      _playingAudio
-                          ? Icons.stop_circle_rounded
-                          : Icons.volume_up_rounded,
+                      Icons.volume_up_rounded,
                       size: 64,
                       color: hasAudio
                           ? AppColors.primaryDark
@@ -464,8 +567,8 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                         : _loadingAudio
                             ? 'Загружаем аудио...'
                             : _playingAudio
-                                ? 'Нажми, чтобы остановить'
-                                : 'Нажми, чтобы послушать',
+                                ? 'Нажми, чтобы повторить'
+                                : 'Нажми, чтобы послушать ещё раз',
                   ),
                 ],
               ),
@@ -474,32 +577,77 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
         );
       case 'word':
       default:
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
-          decoration: BoxDecoration(
-            color: Colors.white,
+        final canRepeatAudio =
+            question.gameType == GameType.imageChoice &&
+            (prompt.audioUrl ?? '').trim().isNotEmpty;
+
+        return Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          child: InkWell(
+            onTap: canRepeatAudio && !_loadingAudio
+                ? () => _playAudio(restart: true)
+                : null,
             borderRadius: BorderRadius.circular(28),
-          ),
-          child: Column(
-            children: [
-              Text(
-                prompt.text ?? '',
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              if ((prompt.transcription ?? '').isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  prompt.transcription!,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 16,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          prompt.text ?? '',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (canRepeatAudio) ...[
+                        const SizedBox(width: 10),
+                        if (_loadingAudio)
+                          const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2.6),
+                          )
+                        else
+                          const Icon(
+                            Icons.volume_up_rounded,
+                            color: AppColors.primaryDark,
+                            size: 30,
+                          ),
+                      ],
+                    ],
                   ),
-                ),
-              ],
-            ],
+                  if ((prompt.transcription ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      prompt.transcription!,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                  if (canRepeatAudio) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Нажми на слово, чтобы услышать ещё раз',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         );
     }
@@ -603,7 +751,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
         ),
         const SizedBox(height: 4),
         const Text(
-          'Выбери картинку, затем подходящее слово',
+          'Перетащи слово на подходящую картинку',
           textAlign: TextAlign.center,
           style: TextStyle(color: AppColors.textSecondary),
         ),
@@ -613,36 +761,69 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.0,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: .88,
           ),
           itemCount: question.left.length,
           itemBuilder: (_, index) {
             final concept = question.left[index];
-            final selected = _selectedConceptId == concept.id;
             final assignedWordId = _matchingPairs[concept.id];
             final assigned = _findOption(question.right, assignedWordId);
             final result = _pairResult(concept.id);
 
-            Color border = selected ? AppColors.accentBlue : AppColors.trackGrey;
+            Color border = assigned == null
+                ? AppColors.trackGrey
+                : AppColors.accentBlue;
+            Color background = Colors.white;
+
             if (result != null) {
               border = result.correct ? AppColors.primary : AppColors.danger;
+              background = result.correct
+                  ? const Color(0xFFF0FFF2)
+                  : const Color(0xFFFFF2F2);
             }
 
-            return Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              child: InkWell(
-                onTap: _answerResult == null
-                    ? () => setState(() => _selectedConceptId = concept.id)
-                    : null,
-                borderRadius: BorderRadius.circular(18),
-                child: Container(
+            return DragTarget<int>(
+              onWillAcceptWithDetails: (_) => _answerResult == null,
+              onAcceptWithDetails: (details) {
+                if (_answerResult != null) return;
+                final wordId = details.data;
+                setState(() {
+                  // Одно слово может принадлежать только одной картинке.
+                  _matchingPairs.removeWhere(
+                    (conceptId, existingWordId) => existingWordId == wordId,
+                  );
+                  _matchingPairs[concept.id] = wordId;
+                });
+              },
+              builder: (context, candidateData, rejectedData) {
+                final hovering = candidateData.isNotEmpty;
+                final activeBorder = hovering && _answerResult == null
+                    ? AppColors.gold
+                    : border;
+
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  transform: Matrix4.identity()..scale(hovering ? 1.025 : 1.0),
+                  transformAlignment: Alignment.center,
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: border, width: 2),
+                    color: hovering
+                        ? const Color(0xFFFFF8D9)
+                        : background,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: activeBorder,
+                      width: hovering ? 3 : 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: hovering ? .12 : .06),
+                        blurRadius: hovering ? 14 : 8,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
                   ),
                   child: Column(
                     children: [
@@ -652,66 +833,137 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                           size: double.infinity,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        assigned?.text ?? 'Выбери слово',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: assigned == null
-                              ? FontWeight.w400
-                              : FontWeight.w700,
-                          color: assigned == null
-                              ? AppColors.textMuted
-                              : AppColors.textPrimary,
-                        ),
+                      const SizedBox(height: 7),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 150),
+                        child: assigned == null
+                            ? Container(
+                                key: ValueKey('empty-${concept.id}'),
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F8),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: AppColors.trackGrey,
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Перетащи сюда',
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                key: ValueKey('word-${concept.id}-${assigned.id}'),
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: result == null
+                                      ? AppColors.bottomNavSelectedBg
+                                      : result.correct
+                                          ? const Color(0xFFE1F5E1)
+                                          : const Color(0xFFFFE7E7),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    if (result != null) ...[
+                                      Icon(
+                                        result.correct
+                                            ? Icons.check_circle_rounded
+                                            : Icons.cancel_rounded,
+                                        size: 16,
+                                        color: result.correct
+                                            ? AppColors.primary
+                                            : AppColors.danger,
+                                      ),
+                                      const SizedBox(width: 4),
+                                    ],
+                                    Flexible(
+                                      child: Text(
+                                        assigned.text ?? '',
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                       ),
                     ],
                   ),
-                ),
-              ),
+                );
+              },
             );
           },
         ),
         const SizedBox(height: 18),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          alignment: WrapAlignment.center,
-          children: question.right.map((word) {
-            final used = _matchingPairs.values.contains(word.id);
-            return ChoiceChip(
-              label: Text(word.text ?? ''),
-              selected: used,
-              onSelected: _answerResult == null && _selectedConceptId != null
-                  ? (_) {
-                      setState(() {
-                        _matchingPairs.removeWhere(
-                          (conceptId, wordId) => wordId == word.id,
-                        );
-                        _matchingPairs[_selectedConceptId!] = word.id;
-                        _selectedConceptId = null;
-                      });
-                    }
-                  : null,
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 20),
-        if (_answerResult == null)
-          FilledButton(
-            onPressed: _sending ? null : _submitMatching,
-            child: _sending
+        if (_answerResult == null) ...[
+          const Text(
+            'Слова',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.center,
+            children: question.right.map((word) {
+              final used = _matchingPairs.values.contains(word.id);
+              return _DraggableWord(
+                word: word,
+                used: used,
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: _sending || _matchingPairs.length != question.left.length
+                ? null
+                : _submitMatching,
+            icon: _sending
                 ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
-                : const Text('Проверить'),
-          )
-        else
+                : const Icon(Icons.check_rounded),
+            label: Text(
+              _matchingPairs.length == question.left.length
+                  ? 'Проверить'
+                  : 'Собери все пары',
+            ),
+          ),
+        ] else ...[
           _FeedbackBanner(result: _answerResult!),
+        ],
       ],
     );
   }
@@ -743,6 +995,97 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       case GameType.matching:
         return 'Найди пару';
     }
+  }
+}
+
+
+class _DraggableWord extends StatelessWidget {
+  final GameOption word;
+  final bool used;
+
+  const _DraggableWord({
+    required this.word,
+    required this.used,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final label = word.text ?? '';
+
+    Widget card({bool dragging = false}) {
+      return Material(
+        color: Colors.transparent,
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 92),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: dragging
+                  ? const [Color(0xFFFFE56A), Color(0xFFFFC83D)]
+                  : used
+                      ? const [Color(0xFFE8EEF3), Color(0xFFDCE5EC)]
+                      : const [Color(0xFFFFFFFF), Color(0xFFF2F8FF)],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: dragging
+                  ? AppColors.gold
+                  : used
+                      ? AppColors.trackGrey
+                      : AppColors.accentBlue,
+              width: 2,
+            ),
+            boxShadow: dragging
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .20),
+                      blurRadius: 14,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.drag_indicator_rounded,
+                size: 19,
+                color: used ? AppColors.textMuted : AppColors.primaryDark,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: used
+                      ? AppColors.textMuted
+                      : AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Draggable<int>(
+      data: word.id,
+      maxSimultaneousDrags: 1,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Transform.scale(
+          scale: 1.08,
+          child: card(dragging: true),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: .28,
+        child: card(),
+      ),
+      child: card(),
+    );
   }
 }
 
@@ -810,27 +1153,6 @@ class _FeedbackBanner extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ResultRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _ResultRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
         ],
       ),
     );

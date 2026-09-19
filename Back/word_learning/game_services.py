@@ -12,6 +12,32 @@ from .models import Concept, GameQuestion, Word, WordProgress
 _rng = random.SystemRandom()
 
 
+GAME_XP_BASE_MAX = 40
+GAME_XP_PERFECT_BONUS = 10
+
+
+def calculate_game_xp(correct_count, wrong_count):
+    """Normalize XP across all game modes by accuracy, not raw item count.
+
+    A fully correct session always yields 50 XP regardless of whether it is
+    10 single-choice questions or matching rounds with several pairs.
+    """
+    try:
+        correct = max(0, int(correct_count))
+        wrong = max(0, int(wrong_count))
+    except (TypeError, ValueError):
+        return 0
+
+    total = correct + wrong
+    if total <= 0:
+        return 0
+
+    base = round(GAME_XP_BASE_MAX * correct / total)
+    if wrong == 0 and correct > 0:
+        base += GAME_XP_PERFECT_BONUS
+    return base
+
+
 def _absolute_url(request, field):
     if not field:
         return None
@@ -275,6 +301,7 @@ def serialize_question(question, request=None, reveal_answer=False):
         data['prompt'] = {
             'kind': 'image',
             'image': _absolute_url(request, target_word.concept.image),
+            'audio': _absolute_url(request, target_word.audio),
         }
         data['options'] = [
             {
@@ -295,6 +322,7 @@ def serialize_question(question, request=None, reveal_answer=False):
             'kind': 'word',
             'text': target_word.text,
             'transcription': target_word.transcription,
+            'audio': _absolute_url(request, target_word.audio),
         }
         data['options'] = [
             {

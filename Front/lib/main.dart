@@ -10,6 +10,7 @@ import 'data/auth_repository.dart';
 import 'data/game_repository.dart';
 import 'data/parent_repository.dart';
 import 'models/child_profile.dart';
+import 'services/background_music_service.dart';
 import 'screens/achievements_screen.dart';
 import 'screens/adventure_choice_screen.dart';
 import 'screens/child_settings_screen.dart';
@@ -57,18 +58,58 @@ class _AuthGate extends StatefulWidget {
   State<_AuthGate> createState() => _AuthGateState();
 }
 
+class _StartupSession {
+  final bool loggedIn;
+  final int? childId;
+
+  const _StartupSession({
+    required this.loggedIn,
+    this.childId,
+  });
+}
+
 class _AuthGateState extends State<_AuthGate> {
-  late Future<bool> _loggedInFuture;
+  late Future<_StartupSession> _sessionFuture;
 
   @override
   void initState() {
     super.initState();
-    _loggedInFuture = authRepository.isLoggedIn();
+    _sessionFuture = _loadStartupSession();
+  }
+
+  Future<_StartupSession> _loadStartupSession() async {
+    final loggedIn = await authRepository.isLoggedIn();
+    if (!loggedIn) {
+      return const _StartupSession(loggedIn: false);
+    }
+
+    final selectedChildId = await parentRepository.getSelectedChildId();
+    if (selectedChildId == null || selectedChildId <= 0) {
+      return const _StartupSession(loggedIn: true);
+    }
+
+    // Проверяем, что сохранённый профиль всё ещё существует и активен.
+    // Если профиль удалили/архивировали, возвращаем родительский кабинет.
+    try {
+      final child = await parentRepository.getChild(selectedChildId);
+      if (!child.isActive) {
+        await parentRepository.clearSelectedChild();
+        return const _StartupSession(loggedIn: true);
+      }
+
+      return _StartupSession(
+        loggedIn: true,
+        childId: child.id,
+      );
+    } catch (_) {
+      await parentRepository.clearSelectedChild();
+      return const _StartupSession(loggedIn: true);
+    }
   }
 
   void _refresh() {
     setState(() {
-      _loggedInFuture = authRepository.isLoggedIn();
+      _sessionFuture = _loadStartupSession();
     });
   }
 
@@ -82,8 +123,8 @@ class _AuthGateState extends State<_AuthGate> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _loggedInFuture,
+    return FutureBuilder<_StartupSession>(
+      future: _sessionFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Scaffold(
@@ -103,10 +144,22 @@ class _AuthGateState extends State<_AuthGate> {
           );
         }
 
-        if (!snapshot.data!) {
+        final session = snapshot.data!;
+
+        if (!session.loggedIn) {
           return ParentLoginScreen(
             authRepository: authRepository,
             onLoggedIn: _refresh,
+          );
+        }
+
+        // Если приложение было закрыто в детском режиме, выбранный профиль
+        // остаётся в ChildSessionStorage. При следующем запуске сразу
+        // возвращаем ребёнка в его обучающий режим.
+        if (session.childId != null) {
+          return ChildRootShell(
+            childId: session.childId!,
+            onReturnToParent: _refresh,
           );
         }
 
@@ -123,8 +176,13 @@ class _AuthGateState extends State<_AuthGate> {
 
 class ChildRootShell extends StatefulWidget {
   final int childId;
+  final VoidCallback? onReturnToParent;
 
-  const ChildRootShell({super.key, required this.childId});
+  const ChildRootShell({
+    super.key,
+    required this.childId,
+    this.onReturnToParent,
+  });
 
   @override
   State<ChildRootShell> createState() => _ChildRootShellState();
@@ -136,6 +194,18 @@ class _ChildRootShellState extends State<ChildRootShell> {
   int _languageRevision = 0;
   bool _allowPop = false;
   bool _exitInProgress = false;
+
+  @override
+  void initState() {
+    super.initState();
+    BackgroundMusicService.instance.startChildMode();
+  }
+
+  @override
+  void dispose() {
+    BackgroundMusicService.instance.stopChildMode();
+    super.dispose();
+  }
 
   Future<bool> _verifyParentPin() {
     return showParentPinVerifyDialog(
@@ -154,12 +224,20 @@ class _ChildRootShellState extends State<ChildRootShell> {
       await parentRepository.clearSelectedChild();
       if (!mounted) return;
 
+      // При восстановлении детского режима после перезапуска ChildRootShell
+      // является корневым экраном, поэтому pop() делать некуда. В этом случае
+      // просим AuthGate заново показать родительский кабинет.
+      if (widget.onReturnToParent != null) {
+        widget.onReturnToParent!();
+        return;
+      }
+
       setState(() {
         _allowPop = true;
       });
 
-      // Даём PopScope перестроиться с canPop=true перед закрытием route.
-      // К этому моменту PIN-диалог уже полностью завершил exit-анимацию.
+      // Обычный сценарий: детский режим был открыт из родительского кабинета
+      // через Navigator.push(), поэтому после PIN можно закрыть route.
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
 

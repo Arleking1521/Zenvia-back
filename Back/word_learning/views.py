@@ -2,8 +2,9 @@ from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.utils import timezone
 from .services import check_achievements
-from .game_services import generate_question, serialize_question, submit_answer
+from .game_services import generate_question, serialize_question, submit_answer, calculate_game_xp
 from .xp_services import award_xp, get_daily_xp_status
+from .daily_lesson_services import get_or_create_daily_lesson, mark_daily_word_listened
 from account.models import ChildProfile
 from account.services import get_child_profile
 from rest_framework import status
@@ -35,6 +36,7 @@ from .models import (
     Achievement,
     ProfileAchievement,
     Level,
+    DailyWordLesson,
 )
 
 from .serializers import (
@@ -57,6 +59,8 @@ from .serializers import (
     AchievementSerializer,
     ProfileAchievementSerializer,
     LevelSerializer,
+    DailyWordLessonSerializer,
+    DailyWordListenRequestSerializer,
 )
 
 class LanguageViewSet(ReadOnlyModelViewSet):
@@ -384,6 +388,53 @@ class ProfileContentProgressViewSet(ListModelMixin, RetrieveModelMixin, GenericV
             ).data
         })
 
+class DailyWordLessonViewSet(RetrieveModelMixin, GenericViewSet):
+    serializer_class = DailyWordLessonSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            DailyWordLesson.objects
+            .filter(profile=get_child_profile(self.request))
+            .select_related('profile', 'topic', 'language')
+            .prefetch_related('items__concept', 'items__concept__words')
+        )
+
+    @action(detail=False, methods=['get'], url_path='current')
+    def current(self, request):
+        topic_id = request.query_params.get('topic')
+        language_code = request.query_params.get('language')
+        if not topic_id or not language_code:
+            return Response(
+                {'detail': 'Передайте topic и language.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        topic = get_object_or_404(Topic, pk=topic_id, is_active=True)
+        language = get_object_or_404(Language, code=language_code)
+        lesson = get_or_create_daily_lesson(
+            get_child_profile(request),
+            topic,
+            language,
+        )
+        lesson = self.get_queryset().get(pk=lesson.pk)
+        return Response(self.get_serializer(lesson).data)
+
+    @extend_schema(request=DailyWordListenRequestSerializer, responses=DailyWordLessonSerializer)
+    @action(detail=True, methods=['post'], url_path='listen')
+    def listen(self, request, pk=None):
+        request_serializer = DailyWordListenRequestSerializer(data=request.data)
+        request_serializer.is_valid(raise_exception=True)
+        lesson = self.get_object()
+        lesson = mark_daily_word_listened(
+            get_child_profile(request),
+            lesson,
+            request_serializer.validated_data['concept'],
+        )
+        lesson = self.get_queryset().get(pk=lesson.pk)
+        return Response(self.get_serializer(lesson).data)
+
+
 class GameSessionViewSet(CreateModelMixin, ListModelMixin, RetrieveModelMixin, GenericViewSet):
     permission_classes = [IsAuthenticated]
 
@@ -588,9 +639,11 @@ class GameSessionViewSet(CreateModelMixin, ListModelMixin, RetrieveModelMixin, G
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            requested_xp = game.correct_count * 10
-            if game.wrong_count == 0 and game.correct_count > 0:
-                requested_xp += 30
+            # All four game modes share the same 0..50 XP reward scale.
+            requested_xp = calculate_game_xp(
+                game.correct_count,
+                game.wrong_count,
+            )
 
             child = ChildProfile.objects.select_for_update().get(pk=game.profile_id)
             xp_award = award_xp(child, requested_xp)

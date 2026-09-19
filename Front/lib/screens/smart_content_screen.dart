@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../data/app_repository.dart';
 import '../models/language.dart';
 import '../models/literary_content.dart';
+import '../services/audio_settings_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/magic_ui.dart';
 
@@ -68,7 +69,11 @@ class _SmartContentScreenState extends State<SmartContentScreen> {
       }
       if (bytes.isEmpty) throw Exception('Пустой аудиофайл');
       await _audioPlayer.stop();
-      await _audioPlayer.play(BytesSource(bytes));
+      await AudioSettingsService.instance.load();
+      await _audioPlayer.play(
+        BytesSource(bytes),
+        volume: AudioSettingsService.instance.voiceVolume,
+      );
       try {
         await widget.repository.markLiteraryContentListened(item.id);
       } catch (_) {

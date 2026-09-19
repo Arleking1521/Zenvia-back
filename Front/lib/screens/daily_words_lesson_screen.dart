@@ -7,8 +7,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_repository.dart';
+import '../models/daily_lesson.dart';
 import '../models/language.dart';
 import '../models/topic.dart';
+import '../services/audio_settings_service.dart';
+import '../services/background_music_service.dart';
 import '../services/daily_lesson_service.dart';
 
 class DailyWordsLessonScreen extends StatefulWidget {
@@ -28,7 +31,7 @@ class DailyWordsLessonScreen extends StatefulWidget {
 }
 
 class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
-  final DailyLessonService _lessonService = DailyLessonService();
+  late final DailyLessonService _lessonService;
   final AudioPlayer _audioPlayer = AudioPlayer();
   final Dio _dio = Dio(
     BaseOptions(
@@ -38,6 +41,7 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
     ),
   );
   final Map<String, Uint8List> _audioCache = <String, Uint8List>{};
+  final Object _musicSilenceToken = Object();
 
   DailyLessonPlan? _plan;
   String? _dragonUrl;
@@ -52,6 +56,8 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
   @override
   void initState() {
     super.initState();
+    BackgroundMusicService.instance.silence(_musicSilenceToken);
+    _lessonService = DailyLessonService(widget.repository);
     _stateSubscription = _audioPlayer.onPlayerStateChanged.listen((state) {
       if (!mounted) return;
       setState(() => _playing = state == PlayerState.playing);
@@ -72,6 +78,7 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
     _stateSubscription?.cancel();
     _completeSubscription?.cancel();
     _audioPlayer.dispose();
+    BackgroundMusicService.instance.unsilence(_musicSilenceToken);
     super.dispose();
   }
 
@@ -125,13 +132,6 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
     if (plan == null || plan.words.isEmpty || _audioLoading) return;
     final word = plan.words[_index];
 
-    final updated = await _lessonService.markStudied(
-      topic: widget.topic,
-      language: widget.language,
-      wordId: word.id,
-    );
-    if (mounted) setState(() => _plan = updated);
-
     final audioUrl = word.audioFor(widget.language)?.trim();
     if (audioUrl == null || audioUrl.isEmpty) {
       if (!mounted) return;
@@ -159,13 +159,29 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
               : lower.endsWith('.m4a')
                   ? 'audio/mp4'
                   : 'audio/mpeg';
-      await _audioPlayer.play(BytesSource(bytes, mimeType: mimeType));
+      await AudioSettingsService.instance.load();
+      await _audioPlayer.play(
+        BytesSource(bytes, mimeType: mimeType),
+        volume: AudioSettingsService.instance.voiceVolume,
+      );
+
+      // Only now tell Django that the word was listened to. If audio loading
+      // or playback fails, the word stays unfinished and games remain locked.
+      final updated = await _lessonService.markStudied(
+        topic: widget.topic,
+        language: widget.language,
+        wordId: word.id,
+        lessonId: plan.lessonId,
+      );
+
       if (!mounted) return;
       setState(() {
+        _plan = updated;
         _currentAudioUrl = audioUrl;
         _audioLoading = false;
       });
     } catch (_) {
+      await _audioPlayer.stop();
       if (!mounted) return;
       setState(() {
         _audioLoading = false;
@@ -386,21 +402,25 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
                         ),
                       ),
                       SizedBox(height: 8 * uiScale),
-                      SizedBox(
-                        height: (132 * uiScale).clamp(108.0, 172.0),
-                        child: Center(
-                          child: _Dragon(
-                            url: _dragonUrl,
-                            size: (124 * uiScale).clamp(108.0, 176.0),
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 8 * uiScale),
                       _NextButton(
                         uiScale: uiScale,
                         enabled: studied,
                         isLast: _index == plan.words.length - 1,
                         onTap: _next,
+                      ),
+                      SizedBox(height: 6 * uiScale),
+                      SizedBox(
+                        height: (150 * uiScale).clamp(126.0, 196.0),
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Padding(
+                            padding: EdgeInsets.only(bottom: 2 * uiScale),
+                            child: _Dragon(
+                              url: _dragonUrl,
+                              size: (138 * uiScale).clamp(118.0, 188.0),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),

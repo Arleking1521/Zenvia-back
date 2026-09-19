@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/parent_repository.dart';
 import '../models/child_profile.dart';
+import '../services/audio_settings_service.dart';
 import '../theme/app_colors.dart';
 import 'child_editor_screen.dart';
 
@@ -23,11 +24,36 @@ class ChildSettingsScreen extends StatefulWidget {
 
 class _ChildSettingsScreenState extends State<ChildSettingsScreen> {
   late Future<ChildProfile> _future;
+  double _musicVolume = AudioSettingsService.defaultBackgroundMusicVolume;
+  double _voiceVolume = AudioSettingsService.defaultVoiceVolume;
+  bool _audioSettingsLoading = true;
 
   @override
   void initState() {
     super.initState();
     _future = widget.repository.getChild(widget.childId);
+    _loadAudioSettings();
+  }
+
+  Future<void> _loadAudioSettings() async {
+    final service = AudioSettingsService.instance;
+    await service.load();
+    if (!mounted) return;
+    setState(() {
+      _musicVolume = service.backgroundMusicVolume;
+      _voiceVolume = service.voiceVolume;
+      _audioSettingsLoading = false;
+    });
+  }
+
+  Future<void> _setMusicVolume(double value) async {
+    setState(() => _musicVolume = value);
+    await AudioSettingsService.instance.setBackgroundMusicVolume(value);
+  }
+
+  Future<void> _setVoiceVolume(double value) async {
+    setState(() => _voiceVolume = value);
+    await AudioSettingsService.instance.setVoiceVolume(value);
   }
 
   Future<void> _edit(ChildProfile child) async {
@@ -117,6 +143,38 @@ class _ChildSettingsScreenState extends State<ChildSettingsScreen> {
                 trailing: const Icon(Icons.lock_outline_rounded),
                 onTap: () => _edit(child),
               ),
+              const SizedBox(height: 24),
+              Text(
+                'Звук обучения',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.deepBlue,
+                    ),
+              ),
+              const SizedBox(height: 10),
+              _VolumeSettingCard(
+                icon: Icons.music_note_rounded,
+                title: 'Фоновая музыка',
+                subtitle: 'Музыка в меню, темах и других экранах',
+                value: _musicVolume,
+                enabled: !_audioSettingsLoading,
+                onChanged: _setMusicVolume,
+              ),
+              const SizedBox(height: 10),
+              _VolumeSettingCard(
+                icon: Icons.record_voice_over_rounded,
+                title: 'Озвучка',
+                subtitle: 'Слова, задания и аудиоматериалы',
+                value: _voiceVolume,
+                enabled: !_audioSettingsLoading,
+                onChanged: _setVoiceVolume,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Громкость меняется сразу и сохраняется для следующих запусков.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              ),
               const SizedBox(height: 20),
               OutlinedButton.icon(
                 onPressed: _returnToParent,
@@ -132,6 +190,114 @@ class _ChildSettingsScreenState extends State<ChildSettingsScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+
+class _VolumeSettingCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final double value;
+  final bool enabled;
+  final ValueChanged<double> onChanged;
+
+  const _VolumeSettingCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = (value * 100).round();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.deepBlue.withValues(alpha: .08),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: .12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: AppColors.primaryDark),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 48,
+                child: Text(
+                  '$percent%',
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: AppColors.deepBlue,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Slider(
+            value: value.clamp(0.0, 1.0).toDouble(),
+            min: 0,
+            max: 1,
+            divisions: 20,
+            label: '$percent%',
+            onChanged: enabled ? onChanged : null,
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              Text('0%', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+              Text('100%', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            ],
+          ),
+        ],
       ),
     );
   }

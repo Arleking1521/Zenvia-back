@@ -5,9 +5,12 @@ import '../data/game_repository.dart';
 import '../models/game.dart';
 import '../models/language.dart';
 import '../models/topic.dart';
+import '../services/background_music_service.dart';
 import '../theme/app_colors.dart';
+import '../services/daily_lesson_service.dart';
 import '../widgets/magic_ui.dart';
 import 'game_play_screen.dart';
+import 'daily_words_lesson_screen.dart';
 
 class GamesScreen extends StatefulWidget {
   final AppRepository appRepository;
@@ -24,6 +27,7 @@ class GamesScreen extends StatefulWidget {
 }
 
 class _GamesScreenState extends State<GamesScreen> {
+  final Object _musicSilenceToken = Object();
   late Future<_GamesData> _future;
   bool _starting = false;
 
@@ -37,7 +41,14 @@ class _GamesScreenState extends State<GamesScreen> {
   @override
   void initState() {
     super.initState();
+    BackgroundMusicService.instance.silence(_musicSilenceToken);
     _future = _load();
+  }
+
+  @override
+  void dispose() {
+    BackgroundMusicService.instance.unsilence(_musicSilenceToken);
+    super.dispose();
   }
 
   Future<_GamesData> _load() async {
@@ -147,6 +158,34 @@ class _GamesScreenState extends State<GamesScreen> {
   Future<void> _startGame(GameType gameType, Topic topic, AppLanguage language) async {
     setState(() => _starting = true);
     try {
+      final lessonService = DailyLessonService(widget.appRepository);
+      var plan = await lessonService.loadPlan(topic: topic, language: language);
+
+      if (!plan.isComplete && plan.requiredCount > 0) {
+        if (!mounted) return;
+        await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) => DailyWordsLessonScreen(
+              topic: topic,
+              language: language,
+              repository: widget.appRepository,
+            ),
+          ),
+        );
+        if (!mounted) return;
+        plan = await lessonService.loadPlan(topic: topic, language: language);
+        if (!plan.isComplete) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Сначала изучи новые слова: ${plan.studiedCount}/${plan.requiredCount}.',
+              ),
+            ),
+          );
+          return;
+        }
+      }
+
       final session = await widget.gameRepository.startGame(
         GameStartRequest(
           topicId: int.parse(topic.id),

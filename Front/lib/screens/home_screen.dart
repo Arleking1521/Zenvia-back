@@ -94,23 +94,25 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    if (language == _selectedLanguage) return;
-
-    // Сначала мгновенно меняем визуальное состояние карточки.
-    // Главный экран при этом не пересоздаётся и не показывает loader.
+    // Даже если этот язык уже сохранён, повторное нажатие должно
+    // снова открыть экран выбора приключения.
     final previousLanguage = _selectedLanguage;
-    setState(() => _selectedLanguage = language);
+    if (language != _selectedLanguage) {
+      setState(() => _selectedLanguage = language);
+    }
 
     try {
       await widget.repository.setSelectedLanguage(language);
       if (!mounted) return;
 
-      // Обновляем только скрытые экраны: Темы / Игры / Награды.
+      // Обновляем скрытые экраны и открываем пещеры.
+      // Callback вызывается и при повторном выборе того же языка.
       widget.onLanguageChanged?.call();
     } catch (_) {
       if (!mounted) return;
-      // Если сохранение не удалось, возвращаем предыдущий выбор.
-      setState(() => _selectedLanguage = previousLanguage);
+      if (language != previousLanguage) {
+        setState(() => _selectedLanguage = previousLanguage);
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Не удалось изменить язык. Попробуйте ещё раз.')),
       );
@@ -241,7 +243,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                               for (var i = 0; i < languages.length; i++) ...[
                                                 _LanguageChoiceCard(
                                                   language: languages[i],
-                                                  selected: languages[i].appLanguage == _selectedLanguage,
                                                   onTap: () => _selectLanguage(languages[i]),
                                                 ),
                                                 if (i != languages.length - 1)
@@ -378,12 +379,10 @@ class _TopBar extends StatelessWidget {
 
 class _LanguageChoiceCard extends StatelessWidget {
   final LanguageOption language;
-  final bool selected;
   final VoidCallback onTap;
 
   const _LanguageChoiceCard({
     required this.language,
-    required this.selected,
     required this.onTap,
   });
 
@@ -401,22 +400,16 @@ class _LanguageChoiceCard extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: 58),
             padding: const EdgeInsets.fromLTRB(10, 7, 18, 7),
             decoration: BoxDecoration(
-              color: selected
-                  ? Colors.white.withValues(alpha: .97)
-                  : const Color(0xFFF7EDF7).withValues(alpha: .93),
+              color: const Color(0xFFF7EDF7).withValues(alpha: .93),
               borderRadius: BorderRadius.circular(30),
               border: Border.all(
-                color: selected
-                    ? const Color(0xFF56D98A)
-                    : Colors.white.withValues(alpha: .92),
-                width: selected ? 2.3 : 1.3,
+                color: Colors.white.withValues(alpha: .92),
+                width: 1.3,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: selected
-                      ? const Color(0xFF28C96C).withValues(alpha: .24)
-                      : const Color(0xFF315B88).withValues(alpha: .12),
-                  blurRadius: selected ? 17 : 10,
+                  color: const Color(0xFF315B88).withValues(alpha: .12),
+                  blurRadius: 10,
                   offset: const Offset(0, 5),
                 ),
               ],
@@ -437,20 +430,6 @@ class _LanguageChoiceCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (selected)
-                  Container(
-                    width: 26,
-                    height: 26,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF28C96C),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                  ),
               ],
             ),
           ),

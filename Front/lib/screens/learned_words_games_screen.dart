@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import '../data/app_repository.dart';
 import '../models/language.dart';
 import '../models/learned_word.dart';
+import '../services/audio_settings_service.dart';
+import '../services/background_music_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/magic_ui.dart';
 
@@ -73,12 +75,20 @@ class LearnedWordsGamesScreen extends StatefulWidget {
 }
 
 class _LearnedWordsGamesScreenState extends State<LearnedWordsGamesScreen> {
+  final Object _musicSilenceToken = Object();
   late Future<List<LearnedWord>> _future;
 
   @override
   void initState() {
     super.initState();
+    BackgroundMusicService.instance.silence(_musicSilenceToken);
     _future = widget.repository.getLearnedWordsAllLanguages();
+  }
+
+  @override
+  void dispose() {
+    BackgroundMusicService.instance.unsilence(_musicSilenceToken);
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -527,7 +537,11 @@ class _MixedLearnedGameScreenState extends State<MixedLearnedGameScreen> {
       }
       if (bytes.isEmpty) throw Exception('Пустой аудиофайл');
       await _audioPlayer.stop();
-      await _audioPlayer.play(BytesSource(bytes));
+      await AudioSettingsService.instance.load();
+      await _audioPlayer.play(
+        BytesSource(bytes),
+        volume: AudioSettingsService.instance.voiceVolume,
+      );
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

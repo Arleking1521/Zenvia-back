@@ -1,6 +1,7 @@
+from django.db import transaction
 from django.db.models import Sum
 
-from .xp_services import award_xp
+from .xp_services import award_bonus_xp
 
 from .models import (
     Achievement,
@@ -149,6 +150,7 @@ def get_condition_value(profile, achievement):
 
     return 0
 
+@transaction.atomic
 def check_achievements(profile):
 
     achievements = Achievement.objects.all()
@@ -186,8 +188,9 @@ def check_achievements(profile):
             if not created:
                 continue
 
-            # Награда достижения тоже проходит через общий дневной лимит XP.
-            award_xp(profile, achievement.xp_reward)
+            # Одноразовая награда достижения не относится к фарму игр и
+            # поэтому не сгорает из-за дневного игрового лимита.
+            award_bonus_xp(profile, achievement.xp_reward)
 
             new_achievements.append(
                 achievement

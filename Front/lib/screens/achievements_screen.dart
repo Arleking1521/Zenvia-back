@@ -49,7 +49,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                       Positioned.fill(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(28),
-                          child: Image.asset('assets/images/dragon_cheer.png', fit: BoxFit.cover),
+                          child: Image.asset('assets/images/dragon_cheer.webp', fit: BoxFit.cover),
                         ),
                       ),
                       Positioned.fill(

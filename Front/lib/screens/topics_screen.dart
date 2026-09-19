@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_repository.dart';
 import '../data/game_repository.dart';
+import '../models/daily_lesson.dart';
 import '../models/language.dart';
 import '../models/topic.dart';
 import '../theme/app_colors.dart';
@@ -66,11 +67,20 @@ class _TopicsScreenState extends State<TopicsScreen> {
   }
 
   Future<void> _openTopic(Topic topic) async {
-    final lessonService = DailyLessonService();
-    final plan = await lessonService.loadPlan(
-      topic: topic,
-      language: _language,
-    );
+    final lessonService = DailyLessonService(widget.repository);
+    DailyLessonPlan plan;
+    try {
+      plan = await lessonService.loadPlan(
+        topic: topic,
+        language: _language,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+      return;
+    }
 
     if (!mounted) return;
 

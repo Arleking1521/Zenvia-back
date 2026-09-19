@@ -239,6 +239,105 @@ class GameQuestion(models.Model):
         return f'Сессия #{self.session_id}, раунд {self.sequence}'
 
 
+class DailyWordLesson(models.Model):
+    """Server-owned daily set of new words for one child/topic/language."""
+
+    profile = models.ForeignKey(
+        'account.ChildProfile',
+        on_delete=models.CASCADE,
+        related_name='daily_word_lessons',
+        verbose_name='Профиль ребёнка',
+    )
+    topic = models.ForeignKey(
+        Topic,
+        on_delete=models.CASCADE,
+        related_name='daily_word_lessons',
+        verbose_name='Тема',
+    )
+    language = models.ForeignKey(
+        Language,
+        on_delete=models.CASCADE,
+        related_name='daily_word_lessons',
+        verbose_name='Язык',
+    )
+    date = models.DateField(verbose_name='Дата')
+    required_count = models.PositiveSmallIntegerField(
+        default=0,
+        validators=[MaxValueValidator(5)],
+        verbose_name='Слов для изучения',
+    )
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Завершён',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создан')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлён')
+
+    class Meta:
+        verbose_name = 'Ежедневный урок слов'
+        verbose_name_plural = 'Ежедневные уроки слов'
+        ordering = ['-date', '-id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['profile', 'topic', 'language', 'date'],
+                name='unique_daily_word_lesson',
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=['profile', 'topic', 'language', 'date'],
+                name='daily_word_lesson_lookup_idx',
+            )
+        ]
+
+    @property
+    def studied_count(self):
+        return self.items.filter(listened_at__isnull=False).count()
+
+    @property
+    def is_complete(self):
+        return self.completed_at is not None or self.required_count == 0
+
+    def __str__(self):
+        return f'{self.profile}: {self.topic} / {self.language.code} / {self.date}'
+
+
+class DailyWordLessonItem(models.Model):
+    lesson = models.ForeignKey(
+        DailyWordLesson,
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name='Ежедневный урок',
+    )
+    concept = models.ForeignKey(
+        Concept,
+        on_delete=models.CASCADE,
+        related_name='daily_lesson_items',
+        verbose_name='Концепт',
+    )
+    position = models.PositiveSmallIntegerField(default=0, verbose_name='Порядок')
+    listened_at = models.DateTimeField(null=True, blank=True, verbose_name='Прослушано')
+
+    class Meta:
+        verbose_name = 'Слово ежедневного урока'
+        verbose_name_plural = 'Слова ежедневного урока'
+        ordering = ['position', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['lesson', 'concept'],
+                name='unique_daily_lesson_concept',
+            )
+        ]
+
+    @property
+    def listened(self):
+        return self.listened_at is not None
+
+    def __str__(self):
+        return f'{self.lesson_id}: {self.concept_id}'
+
+
 class DailyXP(models.Model):
     """Сколько XP ребёнок фактически получил за конкретный календарный день."""
     profile = models.ForeignKey(

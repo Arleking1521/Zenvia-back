@@ -118,3 +118,25 @@ def award_xp(profile, requested_xp: int) -> XPAwardResult:
         daily_limit_reached=remaining_after <= 0,
         date=local_date.isoformat(),
     )
+
+
+@transaction.atomic
+def award_bonus_xp(profile, requested_xp: int) -> int:
+    """Award one-off bonus XP outside the daily farming limit.
+
+    Used for achievements: a child should not permanently lose an earned
+    achievement reward just because the gameplay daily cap was already full.
+    """
+    try:
+        requested = max(0, int(requested_xp))
+    except (TypeError, ValueError):
+        requested = 0
+
+    if requested <= 0:
+        return 0
+
+    locked_profile = ChildProfile.objects.select_for_update().get(pk=profile.pk)
+    locked_profile.total_xp += requested
+    locked_profile.save(update_fields=['total_xp'])
+    profile.total_xp = locked_profile.total_xp
+    return requested

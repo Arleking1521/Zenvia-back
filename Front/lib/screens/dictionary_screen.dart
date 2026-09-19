@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 
 import '../models/language.dart';
 import '../models/topic.dart';
+import '../services/audio_settings_service.dart';
+import '../services/background_music_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/magic_ui.dart';
 
@@ -25,6 +27,7 @@ class DictionaryScreen extends StatefulWidget {
 }
 
 class _DictionaryScreenState extends State<DictionaryScreen> {
+  final Object _backgroundMusicToken = Object();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final Dio _dio = Dio(
     BaseOptions(
@@ -44,6 +47,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
   @override
   void initState() {
     super.initState();
+    BackgroundMusicService.instance.silence(_backgroundMusicToken);
     _playerStateSubscription = _audioPlayer.onPlayerStateChanged.listen((state) {
       if (!mounted) return;
       setState(() => _isPlayingAudio = state == PlayerState.playing);
@@ -60,6 +64,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
 
   @override
   void dispose() {
+    BackgroundMusicService.instance.unsilence(_backgroundMusicToken);
     _playerStateSubscription?.cancel();
     _playerCompleteSubscription?.cancel();
     _audioPlayer.dispose();
@@ -109,7 +114,11 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
               : lower.endsWith('.ogg')
                   ? 'audio/ogg'
                   : 'audio/mpeg';
-      await _audioPlayer.play(BytesSource(bytes, mimeType: mimeType));
+      await AudioSettingsService.instance.load();
+      await _audioPlayer.play(
+        BytesSource(bytes, mimeType: mimeType),
+        volume: AudioSettingsService.instance.voiceVolume,
+      );
       if (mounted) {
         setState(() {
           _currentAudioUrl = url;

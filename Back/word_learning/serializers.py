@@ -14,6 +14,8 @@ from .models import (
     Achievement,
     ProfileAchievement,
     Level,
+    DailyWordLesson,
+    DailyWordLessonItem,
 )
 
 
@@ -181,6 +183,76 @@ class ProfileContentProgressSerializer(serializers.ModelSerializer):
         ]
 
 
+class DailyWordLessonItemSerializer(serializers.ModelSerializer):
+    concept = serializers.IntegerField(source='concept_id', read_only=True)
+    image = serializers.SerializerMethodField()
+    word = serializers.SerializerMethodField()
+    listened = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DailyWordLessonItem
+        fields = [
+            'id',
+            'position',
+            'concept',
+            'image',
+            'word',
+            'listened',
+            'listened_at',
+        ]
+
+    def get_image(self, obj):
+        if not obj.concept.image:
+            return None
+        try:
+            url = obj.concept.image.url
+        except (ValueError, AttributeError):
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(url) if request else url
+
+    def get_word(self, obj):
+        word = obj.concept.words.filter(language=obj.lesson.language).first()
+        if word is None:
+            return None
+        return WordSerializer(word, context=self.context).data
+
+    def get_listened(self, obj):
+        return obj.listened_at is not None
+
+
+class DailyWordLessonSerializer(serializers.ModelSerializer):
+    language_code = serializers.CharField(source='language.code', read_only=True)
+    studied_count = serializers.SerializerMethodField()
+    is_complete = serializers.SerializerMethodField()
+    items = DailyWordLessonItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = DailyWordLesson
+        fields = [
+            'id',
+            'date',
+            'topic',
+            'language',
+            'language_code',
+            'required_count',
+            'studied_count',
+            'is_complete',
+            'completed_at',
+            'items',
+        ]
+
+    def get_studied_count(self, obj):
+        return obj.items.filter(listened_at__isnull=False).count()
+
+    def get_is_complete(self, obj):
+        return obj.is_complete
+
+
+class DailyWordListenRequestSerializer(serializers.Serializer):
+    concept = serializers.IntegerField(min_value=1)
+
+
 class GameSessionSerializer(serializers.ModelSerializer):
     language_code = serializers.CharField(source='language.code', read_only=True)
     rounds_answered = serializers.SerializerMethodField()
@@ -235,11 +307,25 @@ class GameSessionCreateSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         from .game_services import validate_game_content
+        from .daily_lesson_services import ensure_daily_lesson_complete
+        from account.services import get_child_profile
 
         validate_game_content(
             attrs['topic'],
             attrs['language'],
             attrs['game_type'],
+        )
+
+        # Game length is fixed by type so no client can choose a one-question
+        # session just to reach the XP cap faster.
+        attrs['question_count'] = 3 if attrs['game_type'] == 'matching' else 10
+
+        request = self.context['request']
+        profile = get_child_profile(request)
+        ensure_daily_lesson_complete(
+            profile,
+            attrs['topic'],
+            attrs['language'],
         )
         return attrs
 
