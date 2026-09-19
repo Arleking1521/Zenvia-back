@@ -150,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               const Positioned.fill(
                 child: Image(
-                  image: AssetImage('assets/images/home_language_bg.png'),
+                  image: AssetImage('assets/images/home_language_bg.webp'),
                   fit: BoxFit.cover,
                   alignment: Alignment.center,
                 ),
@@ -300,7 +300,7 @@ class _LevelDragonImage extends StatelessWidget {
 
     if (value == null || value.isEmpty) {
       return Image.asset(
-        'assets/images/home_language_dragon.png',
+        'assets/images/home_language_dragon.webp',
         fit: BoxFit.contain,
         alignment: Alignment.bottomCenter,
       );
@@ -312,7 +312,7 @@ class _LevelDragonImage extends StatelessWidget {
       alignment: Alignment.bottomCenter,
       gaplessPlayback: true,
       errorBuilder: (_, __, ___) => Image.asset(
-        'assets/images/home_language_dragon.png',
+        'assets/images/home_language_dragon.webp',
         fit: BoxFit.contain,
         alignment: Alignment.bottomCenter,
       ),
@@ -546,7 +546,7 @@ class _ApiErrorState extends StatelessWidget {
       children: [
         const Positioned.fill(
           child: Image(
-            image: AssetImage('assets/images/home_language_bg.png'),
+            image: AssetImage('assets/images/home_language_bg.webp'),
             fit: BoxFit.cover,
           ),
         ),

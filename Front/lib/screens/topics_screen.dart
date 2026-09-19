@@ -120,7 +120,7 @@ class _TopicsScreenState extends State<TopicsScreen> {
         children: [
           Positioned.fill(
             child: Image.asset(
-              'assets/images/world_map_sky.png',
+              'assets/images/world_map_sky.webp',
               fit: BoxFit.cover,
               alignment: Alignment.topCenter,
             ),
@@ -519,7 +519,7 @@ class _TopicIslandImage extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!unlocked) {
       return Image.asset(
-        'assets/images/world_island_locked.png',
+        'assets/images/world_island_locked.webp',
         fit: BoxFit.contain,
       );
     }

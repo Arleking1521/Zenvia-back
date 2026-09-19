@@ -245,7 +245,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(28),
                                 child: Image.asset(
-                                  'assets/images/dragon_wave.png',
+                                  'assets/images/dragon_wave.webp',
                                   fit: BoxFit.cover,
                                 ),
                               ),

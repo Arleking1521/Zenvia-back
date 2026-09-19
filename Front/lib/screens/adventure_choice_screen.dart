@@ -49,7 +49,7 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
         fit: StackFit.expand,
         children: [
           const Image(
-            image: AssetImage('assets/images/adventure_bg.png'),
+            image: AssetImage('assets/images/adventure_bg.webp'),
             fit: BoxFit.cover,
           ),
           DecoratedBox(
@@ -183,7 +183,7 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
                               children: [
                                 _AdventureCave(
                                   size: caveSize,
-                                  asset: 'assets/images/adventure_learn.png',
+                                  asset: 'assets/images/adventure_learn.webp',
                                   title: 'Хочу\nУчиться',
                                   titleColor: const Color(0xFFFFF4DB),
                                   outlineColor: const Color(0xFF8E4A05),
@@ -192,7 +192,7 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
                                 SizedBox(width: 10 * uiScale),
                                 _AdventureCave(
                                   size: caveSize,
-                                  asset: 'assets/images/adventure_play.png',
+                                  asset: 'assets/images/adventure_play.webp',
                                   title: 'Хочу\nИграть',
                                   titleColor: Colors.white,
                                   outlineColor: const Color(0xFF0647A8),
@@ -216,7 +216,7 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
                             return Center(
                               child: _AdventureCave(
                                 size: smartSize,
-                                asset: 'assets/images/adventure_smart.png',
+                                asset: 'assets/images/adventure_smart.webp',
                                 title: 'Хочу\nУмничать',
                                 titleColor: Colors.white,
                                 outlineColor: const Color(0xFF6F168E),
@@ -460,7 +460,7 @@ class _MotivationSign extends StatelessWidget {
       angle: 0.52,
       alignment: Alignment.bottomCenter,
       child: Image.asset(
-        'assets/images/adventure_sign.png',
+        'assets/images/adventure_sign.webp',
         fit: BoxFit.contain,
         alignment: Alignment.bottomCenter,
       ),
@@ -477,7 +477,7 @@ class _DragonImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final value = url?.trim();
     if (value == null || value.isEmpty) {
-      return Image.asset('assets/images/adventure_dragon.png', fit: BoxFit.contain);
+      return Image.asset('assets/images/adventure_dragon.webp', fit: BoxFit.contain);
     }
 
     return Image.network(
@@ -485,7 +485,7 @@ class _DragonImage extends StatelessWidget {
       fit: BoxFit.contain,
       gaplessPlayback: true,
       errorBuilder: (_, __, ___) => Image.asset(
-        'assets/images/adventure_dragon.png',
+        'assets/images/adventure_dragon.webp',
         fit: BoxFit.contain,
       ),
     );

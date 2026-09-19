@@ -65,7 +65,7 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
                   children: [
                     const ZenviaLogo(scale: .9),
                     const SizedBox(height: 14),
-                    DragonImage(asset: 'assets/images/dragon_hero.png', height: 220),
+                    DragonImage(asset: 'assets/images/dragon_hero.webp', height: 220),
                     const SizedBox(height: 14),
                     MagicCard(
                       child: Column(

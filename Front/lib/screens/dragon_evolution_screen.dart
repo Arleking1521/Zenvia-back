@@ -667,7 +667,7 @@ class _Background extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         const Image(
-          image: AssetImage('assets/images/dragon_evolution_bg.png'),
+          image: AssetImage('assets/images/dragon_evolution_bg.webp'),
           fit: BoxFit.cover,
           alignment: Alignment.center,
         ),

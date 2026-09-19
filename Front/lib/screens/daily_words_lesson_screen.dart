@@ -242,7 +242,7 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
         body: Stack(
           fit: StackFit.expand,
           children: [
-            Image.asset('assets/images/daily_words_bg.png', fit: BoxFit.cover),
+            Image.asset('assets/images/daily_words_bg.webp', fit: BoxFit.cover),
             SafeArea(
               child: Center(
                 child: Container(
@@ -290,7 +290,7 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
         fit: StackFit.expand,
         children: [
           Image.asset(
-            'assets/images/daily_words_bg.png',
+            'assets/images/daily_words_bg.webp',
             fit: BoxFit.cover,
             alignment: Alignment.center,
           ),

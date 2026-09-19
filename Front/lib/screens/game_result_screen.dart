@@ -27,7 +27,7 @@ class GameResultScreen extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           Image.asset(
-            'assets/images/reward_star_clean.png',
+            'assets/images/reward_star_clean.webp',
             fit: BoxFit.cover,
             alignment: Alignment.center,
           ),
