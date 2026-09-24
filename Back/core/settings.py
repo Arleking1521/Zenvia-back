@@ -28,7 +28,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG')=='True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['websw.ru', 'www.websw.ru']
 
 AUTH_USER_MODEL = 'account.User'
 
@@ -134,13 +134,14 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
-STATIC_URL = '/static/'
+FORCE_SCRIPT_NAME = "/zenvia"
+STATIC_URL = '/zenvia/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 # STATICFILES_DIRS = [
 #     os.path.join(BASE_DIR, 'static')
 # ]
 
-MEDIA_URL = '/media/'
+MEDIA_URL = '/zenvia/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 LOCALE_PATHS = [os.path.join(BASE_DIR, 'locale')]
@@ -166,6 +167,8 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS':
         'drf_spectacular.openapi.AutoSchema',
 }
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 SIMPLE_JWT = {
     # Access-токен живет 30 минут
