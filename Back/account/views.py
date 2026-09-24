@@ -24,6 +24,7 @@ from .serializers import (
     TariffPlanSerializer,
     SubscriptionSerializer,
     SubscriptionCreateSerializer,
+    PromoCodeValidateSerializer,
 )
 
 
@@ -157,7 +158,36 @@ class TariffPlanViewSet(ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return TariffPlan.objects.filter(is_active=True).order_by('position', 'id')
+        return (
+            TariffPlan.objects
+            .filter(is_active=True, is_public=True)
+            .order_by('position', 'id')
+        )
+
+
+class PromoCodeValidateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = PromoCodeValidateSerializer(
+            data=request.data,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        promo = serializer.validated_data['promo']
+
+        return Response({
+            'valid': True,
+            'code': promo.code,
+            'kindergarten': {
+                'id': promo.kindergarten_id,
+                'name': promo.kindergarten.name,
+            },
+            'tariff': TariffPlanSerializer(
+                promo.tariff,
+                context={'request': request},
+            ).data,
+        })
 
 
 class SubscriptionViewSet(
@@ -172,7 +202,10 @@ class SubscriptionViewSet(
         return (
             Subscription.objects
             .filter(parent=self.request.user)
-            .select_related('tariff')
+            .select_related(
+                'tariff',
+                'promo_usage__promo_code__kindergarten',
+            )
             .order_by('-created_at')
         )
 

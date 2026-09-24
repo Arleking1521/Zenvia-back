@@ -6,6 +6,8 @@ from .models import (
     ChildProfile,
     TariffPlan,
     Subscription,
+    PromoCode,
+    PromoCodeUsage,
 )
 from word_learning.models import Language, Level
 
@@ -251,9 +253,69 @@ class TariffPlanSerializer(serializers.ModelSerializer):
         ]
 
 
+def _normalize_promo_code(value):
+    return (value or '').strip().upper()
+
+
+def _promo_error(promo, parent=None):
+    from django.utils import timezone
+
+    now = timezone.now()
+
+    if not promo.is_active:
+        return 'Промокод отключён.'
+    if not promo.kindergarten.is_active:
+        return 'Промокод этого детского сада временно недоступен.'
+    if not promo.tariff.is_active:
+        return 'Тариф по этому промокоду временно недоступен.'
+    if promo.valid_from and promo.valid_from > now:
+        return 'Промокод ещё не начал действовать.'
+    if promo.valid_until and promo.valid_until <= now:
+        return 'Срок действия промокода истёк.'
+    if promo.max_uses is not None and promo.usages.count() >= promo.max_uses:
+        return 'Лимит активаций этого промокода исчерпан.'
+    if (
+        parent is not None
+        and promo.one_use_per_parent
+        and promo.usages.filter(parent=parent).exists()
+    ):
+        return 'Этот промокод уже был использован вашим аккаунтом.'
+    return None
+
+
+class PromoCodeValidateSerializer(serializers.Serializer):
+    code = serializers.CharField(max_length=64)
+
+    def validate_code(self, value):
+        code = _normalize_promo_code(value)
+        if not code:
+            raise serializers.ValidationError('Введите промокод.')
+        return code
+
+    def validate(self, attrs):
+        code = attrs['code']
+        promo = (
+            PromoCode.objects
+            .select_related('kindergarten', 'tariff')
+            .filter(code__iexact=code)
+            .first()
+        )
+        if promo is None:
+            raise serializers.ValidationError({'code': 'Промокод не найден.'})
+
+        error = _promo_error(promo, self.context['request'].user)
+        if error:
+            raise serializers.ValidationError({'code': error})
+
+        attrs['promo'] = promo
+        return attrs
+
+
 class SubscriptionSerializer(serializers.ModelSerializer):
     tariff = TariffPlanSerializer(read_only=True)
     is_current = serializers.BooleanField(read_only=True)
+    promo_code = serializers.SerializerMethodField()
+    kindergarten = serializers.SerializerMethodField()
 
     class Meta:
         model = Subscription
@@ -267,36 +329,147 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'payment_provider',
             'external_payment_id',
             'is_current',
+            'promo_code',
+            'kindergarten',
             'created_at',
             'updated_at',
         ]
+
+    def get_promo_code(self, obj):
+        try:
+            return obj.promo_usage.promo_code.code
+        except PromoCodeUsage.DoesNotExist:
+            return None
+
+    def get_kindergarten(self, obj):
+        try:
+            kindergarten = obj.promo_usage.promo_code.kindergarten
+        except PromoCodeUsage.DoesNotExist:
+            return None
+        return {
+            'id': kindergarten.id,
+            'name': kindergarten.name,
+        }
 
 
 class SubscriptionCreateSerializer(serializers.Serializer):
     tariff = serializers.PrimaryKeyRelatedField(
         queryset=TariffPlan.objects.filter(is_active=True),
+        required=False,
+    )
+    promo_code = serializers.CharField(
+        max_length=64,
+        required=False,
+        allow_blank=False,
+        write_only=True,
     )
 
     def validate(self, attrs):
         parent = self.context['request'].user
+        tariff = attrs.get('tariff')
+        promo_code = _normalize_promo_code(attrs.get('promo_code'))
+
+        if not tariff and not promo_code:
+            raise serializers.ValidationError(
+                'Выберите тариф или введите промокод.'
+            )
+
+        if promo_code:
+            promo = (
+                PromoCode.objects
+                .select_related('kindergarten', 'tariff')
+                .filter(code__iexact=promo_code)
+                .first()
+            )
+            if promo is None:
+                raise serializers.ValidationError({
+                    'promo_code': 'Промокод не найден.'
+                })
+            error = _promo_error(promo, parent)
+            if error:
+                raise serializers.ValidationError({'promo_code': error})
+            if tariff is not None and tariff.pk != promo.tariff_id:
+                raise serializers.ValidationError({
+                    'tariff': 'Этот тариф не соответствует указанному промокоду.'
+                })
+            tariff = promo.tariff
+            attrs['promo'] = promo
+            attrs['promo_code'] = promo.code
+        elif tariff is not None and not tariff.is_public:
+            raise serializers.ValidationError({
+                'tariff': 'Этот тариф доступен только по промокоду.'
+            })
+
         if parent.subscriptions.filter(
             status__in=[Subscription.STATUS_PENDING, Subscription.STATUS_ACTIVE]
         ).exists():
             raise serializers.ValidationError(
                 'У родителя уже есть активная подписка или подписка, ожидающая оплаты.'
             )
-        tariff = attrs['tariff']
+
         children_count = parent.children.filter(is_active=True).count()
-        if children_count > tariff.max_children:
+        if tariff is not None and children_count > tariff.max_children:
             raise serializers.ValidationError(
                 f'Тариф поддерживает максимум {tariff.max_children} профилей детей, '
                 f'а у вас уже создано {children_count}.'
             )
+
+        attrs['tariff'] = tariff
         return attrs
 
     def create(self, validated_data):
-        return Subscription.objects.create(
-            parent=self.context['request'].user,
-            tariff=validated_data['tariff'],
-            status=Subscription.STATUS_PENDING,
-        )
+        from django.db import transaction
+
+        request = self.context['request']
+        promo = validated_data.pop('promo', None)
+        validated_data.pop('promo_code', None)
+
+        with transaction.atomic():
+            parent = (
+                User.objects
+                .select_for_update()
+                .get(pk=request.user.pk)
+            )
+
+            if parent.subscriptions.filter(
+                status__in=[Subscription.STATUS_PENDING, Subscription.STATUS_ACTIVE]
+            ).exists():
+                raise serializers.ValidationError(
+                    'У родителя уже есть активная подписка или подписка, ожидающая оплаты.'
+                )
+
+            tariff = validated_data['tariff']
+
+            if promo is not None:
+                promo = (
+                    PromoCode.objects
+                    .select_for_update()
+                    .select_related('kindergarten', 'tariff')
+                    .get(pk=promo.pk)
+                )
+                error = _promo_error(promo, parent)
+                if error:
+                    raise serializers.ValidationError({'promo_code': error})
+                tariff = promo.tariff
+
+            children_count = parent.children.filter(is_active=True).count()
+            if children_count > tariff.max_children:
+                raise serializers.ValidationError(
+                    f'Тариф поддерживает максимум {tariff.max_children} профилей детей, '
+                    f'а у вас уже создано {children_count}.'
+                )
+
+            subscription = Subscription.objects.create(
+                parent=parent,
+                tariff=tariff,
+                status=Subscription.STATUS_PENDING,
+            )
+
+            if promo is not None:
+                PromoCodeUsage.objects.create(
+                    promo_code=promo,
+                    parent=parent,
+                    subscription=subscription,
+                )
+
+        return subscription

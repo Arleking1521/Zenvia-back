@@ -8,6 +8,9 @@ from .models import (
     ChildLearningLanguage,
     TariffPlan,
     Subscription,
+    Kindergarten,
+    PromoCode,
+    PromoCodeUsage,
 )
 
 
@@ -45,10 +48,73 @@ class ChildLearningLanguageAdmin(admin.ModelAdmin):
 
 @admin.register(TariffPlan)
 class TariffPlanAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'price', 'currency', 'duration_days', 'max_children', 'is_active')
-    list_filter = ('is_active', 'currency')
+    list_display = (
+        'id',
+        'title',
+        'price',
+        'currency',
+        'duration_days',
+        'max_children',
+        'is_public',
+        'is_active',
+    )
+    list_filter = ('is_public', 'is_active', 'currency')
     search_fields = ('title', 'code')
     ordering = ('position', 'id')
+
+
+@admin.register(Kindergarten)
+class KindergartenAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'is_active', 'created_at')
+    list_filter = ('is_active',)
+    search_fields = ('name',)
+    readonly_fields = ('created_at',)
+
+
+@admin.register(PromoCode)
+class PromoCodeAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'code',
+        'kindergarten',
+        'tariff',
+        'is_active',
+        'valid_from',
+        'valid_until',
+        'max_uses',
+        'usage_count',
+    )
+    list_filter = ('is_active', 'one_use_per_parent', 'kindergarten')
+    search_fields = ('code', 'kindergarten__name', 'tariff__title')
+    autocomplete_fields = ('kindergarten', 'tariff')
+    readonly_fields = ('created_at', 'updated_at', 'usage_count')
+
+    @admin.display(description='Использований')
+    def usage_count(self, obj):
+        if obj is None or not obj.pk:
+            return 0
+        return obj.usages.count()
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'tariff':
+            kwargs['queryset'] = TariffPlan.objects.filter(
+                is_active=True,
+                is_public=False,
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+@admin.register(PromoCodeUsage)
+class PromoCodeUsageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'promo_code', 'parent', 'subscription', 'used_at')
+    list_filter = ('promo_code__kindergarten', 'promo_code')
+    search_fields = (
+        'promo_code__code',
+        'promo_code__kindergarten__name',
+        'parent__email',
+    )
+    autocomplete_fields = ('promo_code', 'parent', 'subscription')
+    readonly_fields = ('used_at',)
 
 
 @admin.register(Subscription)

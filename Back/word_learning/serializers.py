@@ -373,6 +373,10 @@ class ProfileAchievementSerializer(serializers.ModelSerializer):
 
 
 class LevelSerializer(serializers.ModelSerializer):
+    # Снаружи API остаётся совместимым: Flutter по-прежнему получает поле
+    # `icon`, но теперь backend выбирает его по FK аватарки активного ребёнка.
+    icon = serializers.SerializerMethodField()
+
     class Meta:
         model = Level
         fields = [
@@ -382,6 +386,69 @@ class LevelSerializer(serializers.ModelSerializer):
             'xp_required',
             'icon',
         ]
+
+    def _child_avatar_id(self):
+        if hasattr(self, '_cached_child_avatar_id'):
+            return self._cached_child_avatar_id
+
+        child = self.context.get('child_profile')
+        request = self.context.get('request')
+
+        if child is None and request is not None:
+            from account.services import get_child_profile
+            child = get_child_profile(request, required=False)
+
+        self._cached_child_avatar_id = (
+            child.icon_id
+            if child is not None
+            else None
+        )
+        return self._cached_child_avatar_id
+
+    def get_icon(self, obj):
+        avatar_id = self._child_avatar_id()
+        selected = None
+
+        if avatar_id:
+            # Если ViewSet сделал prefetch_related('dragon_images'), используем
+            # уже загруженный набор и не создаём отдельный SQL-запрос на уровень.
+            prefetched = getattr(obj, '_prefetched_objects_cache', {}).get(
+                'dragon_images'
+            )
+
+            if prefetched is not None:
+                selected = next(
+                    (
+                        item
+                        for item in prefetched
+                        if item.avatar_id == avatar_id
+                    ),
+                    None,
+                )
+            else:
+                selected = obj.dragon_images.filter(
+                    avatar_id=avatar_id
+                ).first()
+
+        # Пока администратор не загрузил вариант для выбранной аватарки,
+        # показываем старую Level.icon. Это позволяет внедрить миграцию без
+        # потери текущих изображений и без поломки приложения.
+        image = (
+            selected.image
+            if selected is not None and selected.image
+            else obj.icon
+        )
+
+        if not image:
+            return None
+
+        try:
+            url = image.url
+        except (ValueError, AttributeError):
+            return None
+
+        request = self.context.get('request')
+        return request.build_absolute_uri(url) if request else url
 
 class WordAnswerRequestSerializer(serializers.Serializer):
     concept = serializers.IntegerField(min_value=1)

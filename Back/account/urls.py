@@ -12,6 +12,7 @@ from .views import (
     TariffPlanViewSet,
     SubscriptionViewSet,
     DashboardView,
+    PromoCodeValidateView,
 )
 
 from .pin_views import ParentPinView, ParentPinVerifyView
@@ -33,5 +34,6 @@ urlpatterns = [
     path('parent-pin/', ParentPinView.as_view(), name='parent_pin'),
     path('parent-pin/verify/', ParentPinVerifyView.as_view(), name='parent_pin_verify'),
     path('avatars/', avatar_list, name='avatars'),
+    path('promo-codes/validate/', PromoCodeValidateView.as_view(), name='promo_code_validate'),
     path('', include(router.urls)),
 ]

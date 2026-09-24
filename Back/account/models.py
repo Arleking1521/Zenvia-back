@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -120,6 +121,11 @@ class TariffPlan(models.Model):
     duration_days = models.PositiveIntegerField(default=30, verbose_name='Срок, дней')
     max_children = models.PositiveSmallIntegerField(default=1, verbose_name='Максимум профилей детей')
     is_active = models.BooleanField(default=True, verbose_name='Активен')
+    is_public = models.BooleanField(
+        default=True,
+        verbose_name='Показывать в общем списке',
+        help_text='Отключите для скрытых тарифов, доступных только по промокоду.',
+    )
     position = models.PositiveIntegerField(default=0, verbose_name='Порядок')
 
     class Meta:
@@ -129,6 +135,84 @@ class TariffPlan(models.Model):
 
     def __str__(self):
         return self.title
+
+
+
+class Kindergarten(models.Model):
+    name = models.CharField(max_length=255, verbose_name='Название детского сада')
+    is_active = models.BooleanField(default=True, verbose_name='Активен')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создан')
+
+    class Meta:
+        verbose_name = 'Детский сад'
+        verbose_name_plural = 'Детские сады'
+        ordering = ['name', 'id']
+
+    def __str__(self):
+        return self.name
+
+
+class PromoCode(models.Model):
+    code = models.CharField(
+        max_length=64,
+        unique=True,
+        db_index=True,
+        verbose_name='Промокод',
+    )
+    kindergarten = models.ForeignKey(
+        Kindergarten,
+        on_delete=models.CASCADE,
+        related_name='promo_codes',
+        verbose_name='Детский сад',
+    )
+    tariff = models.ForeignKey(
+        TariffPlan,
+        on_delete=models.PROTECT,
+        related_name='promo_codes',
+        verbose_name='Скрытый тариф',
+    )
+    is_active = models.BooleanField(default=True, verbose_name='Активен')
+    valid_from = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Действует с',
+    )
+    valid_until = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Действует до',
+    )
+    max_uses = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Максимальное число использований',
+        help_text='Оставьте пустым, если лимита нет.',
+    )
+    one_use_per_parent = models.BooleanField(
+        default=True,
+        verbose_name='Одно использование на родителя',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создан')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлён')
+
+    class Meta:
+        verbose_name = 'Промокод'
+        verbose_name_plural = 'Промокоды'
+        ordering = ['kindergarten__name', 'code']
+
+    def clean(self):
+        super().clean()
+        if self.tariff_id and self.tariff.is_public:
+            raise ValidationError({
+                'tariff': 'Для промокода выберите скрытый тариф (is_public=False).'
+            })
+
+    def save(self, *args, **kwargs):
+        self.code = (self.code or '').strip().upper()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.code} — {self.kindergarten.name}'
 
 
 class Subscription(models.Model):
@@ -186,3 +270,33 @@ class Subscription(models.Model):
 
     def __str__(self):
         return f'{self.parent.email}: {self.tariff.title} ({self.status})'
+
+class PromoCodeUsage(models.Model):
+    promo_code = models.ForeignKey(
+        PromoCode,
+        on_delete=models.PROTECT,
+        related_name='usages',
+        verbose_name='Промокод',
+    )
+    parent = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='promo_code_usages',
+        verbose_name='Родитель',
+    )
+    subscription = models.OneToOneField(
+        Subscription,
+        on_delete=models.CASCADE,
+        related_name='promo_usage',
+        verbose_name='Подписка',
+    )
+    used_at = models.DateTimeField(auto_now_add=True, verbose_name='Использован')
+
+    class Meta:
+        verbose_name = 'Использование промокода'
+        verbose_name_plural = 'Использования промокодов'
+        ordering = ['-used_at']
+
+    def __str__(self):
+        return f'{self.promo_code.code} — {self.parent.email}'
+

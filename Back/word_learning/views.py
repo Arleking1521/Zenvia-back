@@ -676,9 +676,26 @@ class GameSessionViewSet(CreateModelMixin, ListModelMixin, RetrieveModelMixin, G
             })
 
 class LevelViewSet(ReadOnlyModelViewSet):
-    queryset = Level.objects.all().order_by('number')
     serializer_class = LevelSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Загружаем все связи level -> avatar -> dragon image одним prefetch.
+        # Обычно аватарок немного, поэтому это избавляет список уровней от N+1.
+        return (
+            Level.objects
+            .all()
+            .prefetch_related('dragon_images')
+            .order_by('number')
+        )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['child_profile'] = get_child_profile(
+            self.request,
+            required=False,
+        )
+        return context
 
     @action(
         detail=False,
@@ -686,21 +703,28 @@ class LevelViewSet(ReadOnlyModelViewSet):
         url_path='current'
     )
     def current(self, request):
-        xp = get_child_profile(request).total_xp
+        child = get_child_profile(request)
+        xp = child.total_xp
+        levels = self.get_queryset()
 
         current_level = (
-            Level.objects
+            levels
             .filter(xp_required__lte=xp)
             .order_by('-xp_required')
             .first()
         )
 
         next_level = (
-            Level.objects
+            levels
             .filter(xp_required__gt=xp)
             .order_by('xp_required')
             .first()
         )
+
+        serializer_context = {
+            'request': request,
+            'child_profile': child,
+        }
 
         return Response({
             'total_xp': xp,
@@ -708,9 +732,7 @@ class LevelViewSet(ReadOnlyModelViewSet):
             'current_level': (
                 LevelSerializer(
                     current_level,
-                    context={
-                        'request': request
-                    }
+                    context=serializer_context,
                 ).data
                 if current_level
                 else None
@@ -719,9 +741,7 @@ class LevelViewSet(ReadOnlyModelViewSet):
             'next_level': (
                 LevelSerializer(
                     next_level,
-                    context={
-                        'request': request
-                    }
+                    context=serializer_context,
                 ).data
                 if next_level
                 else None

@@ -1110,8 +1110,28 @@ class ProfileAchievementAdmin(admin.ModelAdmin):
 
 
 # ---------------------------------------------------------
-# Уровни
+# Уровни / эволюция дракончика
 # ---------------------------------------------------------
+
+
+class DragonLevelImageInline(admin.TabularInline):
+    model = DragonLevelImage
+    extra = 0
+    min_num = 0
+    autocomplete_fields = ("avatar",)
+    readonly_fields = ("dragon_preview",)
+    fields = (
+        "avatar",
+        "image",
+        "dragon_preview",
+    )
+
+    @admin.display(description="Предпросмотр")
+    def dragon_preview(self, obj):
+        if not obj or not obj.pk:
+            return "—"
+        return image_preview(obj.image, 90, 90)
+
 
 @admin.register(Level)
 class LevelAdmin(admin.ModelAdmin):
@@ -1119,7 +1139,8 @@ class LevelAdmin(admin.ModelAdmin):
         "number",
         "title",
         "xp_required",
-        "icon_preview_small",
+        "dragon_variants_count",
+        "fallback_icon_preview",
     )
     list_display_links = (
         "number",
@@ -1135,7 +1156,10 @@ class LevelAdmin(admin.ModelAdmin):
         "number",
     )
     readonly_fields = (
-        "icon_preview_large",
+        "fallback_icon_preview_large",
+    )
+    inlines = (
+        DragonLevelImageInline,
     )
     save_on_top = True
     list_per_page = 50
@@ -1152,20 +1176,86 @@ class LevelAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "Оформление",
+            "Резервная иконка",
             {
+                "description": (
+                    "Используется только если для аватарки ребёнка ещё не "
+                    "загружено изображение эволюции ниже."
+                ),
                 "fields": (
                     "icon",
-                    "icon_preview_large",
-                )
+                    "fallback_icon_preview_large",
+                ),
             },
         ),
     )
 
-    @admin.display(description="Иконка")
-    def icon_preview_small(self, obj):
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(_dragon_variants_count=Count("dragon_images"))
+        )
+
+    @admin.display(
+        description="Вариантов дракона",
+        ordering="_dragon_variants_count",
+    )
+    def dragon_variants_count(self, obj):
+        return obj._dragon_variants_count
+
+    @admin.display(description="Fallback")
+    def fallback_icon_preview(self, obj):
         return image_preview(obj.icon, 45, 45)
 
-    @admin.display(description="Предпросмотр")
-    def icon_preview_large(self, obj):
+    @admin.display(description="Предпросмотр fallback")
+    def fallback_icon_preview_large(self, obj):
         return image_preview(obj.icon, 140, 140)
+
+
+@admin.register(DragonLevelImage)
+class DragonLevelImageAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "level",
+        "avatar",
+        "dragon_preview",
+    )
+    list_filter = (
+        "avatar",
+        "level",
+    )
+    search_fields = (
+        "level__title",
+        "avatar__title",
+    )
+    autocomplete_fields = (
+        "level",
+        "avatar",
+    )
+    list_select_related = (
+        "level",
+        "avatar",
+    )
+    ordering = (
+        "level__number",
+        "avatar_id",
+    )
+    readonly_fields = (
+        "dragon_preview_large",
+    )
+    fields = (
+        "level",
+        "avatar",
+        "image",
+        "dragon_preview_large",
+    )
+    list_per_page = 100
+
+    @admin.display(description="Дракончик")
+    def dragon_preview(self, obj):
+        return image_preview(obj.image, 55, 55)
+
+    @admin.display(description="Предпросмотр")
+    def dragon_preview_large(self, obj):
+        return image_preview(obj.image, 160, 160)

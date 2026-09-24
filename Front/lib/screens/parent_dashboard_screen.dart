@@ -221,7 +221,13 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                   children: [
                     Row(
                       children: [
-                        const ZenviaLogo(scale: .56),
+                        SizedBox(
+                          width: 155,
+                          child: Image.asset(
+                            'assets/images/zenvia_kids_logo.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                         const Spacer(),
                         Material(
                           color: Colors.white,

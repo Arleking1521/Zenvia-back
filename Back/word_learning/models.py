@@ -420,7 +420,14 @@ class Level(models.Model):
     number = models.PositiveSmallIntegerField(unique=True, verbose_name='Номер')
     title = models.CharField(max_length=128, verbose_name='Название')
     xp_required = models.PositiveIntegerField(unique=True, verbose_name='Необходимый опыт')
-    icon = models.ImageField(upload_to='levels/icons/', blank=True, null=True, verbose_name='Иконка')
+    # Временный fallback для старых данных. Основные изображения эволюции
+    # хранятся в DragonLevelImage и выбираются по аватарке ребёнка.
+    icon = models.ImageField(
+        upload_to='levels/icons/',
+        blank=True,
+        null=True,
+        verbose_name='Иконка по умолчанию (fallback)',
+    )
 
     class Meta:
         verbose_name = 'Уровень'
@@ -428,3 +435,38 @@ class Level(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class DragonLevelImage(models.Model):
+    """Изображение стадии эволюции для конкретной аватарки и уровня."""
+
+    level = models.ForeignKey(
+        Level,
+        on_delete=models.CASCADE,
+        related_name='dragon_images',
+        verbose_name='Уровень',
+    )
+    avatar = models.ForeignKey(
+        'account.Avatar',
+        on_delete=models.CASCADE,
+        related_name='level_dragon_images',
+        verbose_name='Аватар',
+    )
+    image = models.ImageField(
+        upload_to='levels/dragons/',
+        verbose_name='Изображение дракончика',
+    )
+
+    class Meta:
+        verbose_name = 'Изображение дракончика уровня'
+        verbose_name_plural = 'Изображения дракончиков уровней'
+        ordering = ['level_id', 'avatar_id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['level', 'avatar'],
+                name='unique_level_avatar_dragon',
+            )
+        ]
+
+    def __str__(self):
+        return f'{self.avatar} — уровень {self.level.number}'

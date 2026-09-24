@@ -127,16 +127,20 @@ class _AuthGateState extends State<_AuthGate> {
       future: _sessionFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Scaffold(
+          return Scaffold(
             body: FantasyBackground(
               light: false,
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    ZenviaLogo(scale: .85),
-                    SizedBox(height: 22),
-                    CircularProgressIndicator(color: Colors.white),
+                    Image.asset(
+                      'assets/images/zenvia_kids_logo.png',
+                      width: 270,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 22),
+                    const CircularProgressIndicator(color: Colors.white),
                   ],
                 ),
               ),
