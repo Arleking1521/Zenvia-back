@@ -188,6 +188,9 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
                                   title: 'Хочу\nУчиться',
                                   titleColor: const Color(0xFFFFF4DB),
                                   outlineColor: const Color(0xFF8E4A05),
+                                  floatAmplitude: 5.0,
+                                  floatDuration: const Duration(milliseconds: 3900),
+                                  floatPhase: 0.0,
                                   onTap: () => _select(AdventureDestination.learn),
                                 ),
                                 SizedBox(width: 10 * uiScale),
@@ -197,6 +200,9 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
                                   title: 'Хочу\nИграть',
                                   titleColor: Colors.white,
                                   outlineColor: const Color(0xFF0647A8),
+                                  floatAmplitude: 6.0,
+                                  floatDuration: const Duration(milliseconds: 4300),
+                                  floatPhase: 2.1,
                                   onTap: () {
                                     Navigator.of(context).push(
                                       MaterialPageRoute<void>(
@@ -227,6 +233,9 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
                                 title: 'Хочу\nУмничать',
                                 titleColor: Colors.white,
                                 outlineColor: const Color(0xFF6F168E),
+                                floatAmplitude: 4.5,
+                                floatDuration: const Duration(milliseconds: 4100),
+                                floatPhase: 4.0,
                                 onTap: () => _select(AdventureDestination.smart),
                               ),
                             );
@@ -339,6 +348,9 @@ class _AdventureCave extends StatefulWidget {
   final String title;
   final Color titleColor;
   final Color outlineColor;
+  final double floatAmplitude;
+  final Duration floatDuration;
+  final double floatPhase;
   final VoidCallback onTap;
 
   const _AdventureCave({
@@ -347,6 +359,9 @@ class _AdventureCave extends StatefulWidget {
     required this.title,
     required this.titleColor,
     required this.outlineColor,
+    this.floatAmplitude = 5.0,
+    this.floatDuration = const Duration(milliseconds: 4000),
+    this.floatPhase = 0.0,
     required this.onTap,
   });
 
@@ -354,48 +369,94 @@ class _AdventureCave extends StatefulWidget {
   State<_AdventureCave> createState() => _AdventureCaveState();
 }
 
-class _AdventureCaveState extends State<_AdventureCave> {
+class _AdventureCaveState extends State<_AdventureCave>
+    with SingleTickerProviderStateMixin {
   bool _pressed = false;
+  late final AnimationController _floatController;
+
+  @override
+  void initState() {
+    super.initState();
+    _floatController = AnimationController(
+      vsync: this,
+      duration: widget.floatDuration,
+    )..repeat();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AdventureCave oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.floatDuration != widget.floatDuration) {
+      _floatController.duration = widget.floatDuration;
+      if (!_floatController.isAnimating) {
+        _floatController.repeat();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _floatController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapCancel: () => setState(() => _pressed = false),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap();
+    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
+    return AnimatedBuilder(
+      animation: _floatController,
+      builder: (context, child) {
+        final offsetY = reduceMotion
+            ? 0.0
+            : math.sin(
+                  _floatController.value * math.pi * 2 + widget.floatPhase,
+                ) *
+                widget.floatAmplitude;
+
+        return Transform.translate(
+          offset: Offset(0, offsetY),
+          child: child,
+        );
       },
-      child: AnimatedScale(
-        duration: const Duration(milliseconds: 110),
-        scale: _pressed ? .95 : 1,
-        child: SizedBox(
-          width: widget.size,
-          height: widget.size,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned.fill(
-                child: Image.asset(widget.asset, fit: BoxFit.contain),
-              ),
-              Positioned(
-                left: widget.size * .18,
-                right: widget.size * .18,
-                top: widget.size * .205,
-                height: widget.size * .17,
-                child: Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: _OutlinedCaveTitle(
-                      text: widget.title,
-                      fontSize: widget.size * .078,
-                      color: widget.titleColor,
-                      outlineColor: widget.outlineColor,
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapCancel: () => setState(() => _pressed = false),
+        onTapUp: (_) {
+          setState(() => _pressed = false);
+          widget.onTap();
+        },
+        child: AnimatedScale(
+          duration: const Duration(milliseconds: 110),
+          scale: _pressed ? .95 : 1,
+          child: SizedBox(
+            width: widget.size,
+            height: widget.size,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: Image.asset(widget.asset, fit: BoxFit.contain),
+                ),
+                Positioned(
+                  left: widget.size * .18,
+                  right: widget.size * .18,
+                  top: widget.size * .205,
+                  height: widget.size * .17,
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: _OutlinedCaveTitle(
+                        text: widget.title,
+                        fontSize: widget.size * .078,
+                        color: widget.titleColor,
+                        outlineColor: widget.outlineColor,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

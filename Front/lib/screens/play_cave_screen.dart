@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 
+import 'catch_stars_game_screen.dart';
 import 'firefly_sequence_game_screen.dart';
 import 'memory_match_game_screen.dart';
 
 class PlayCaveScreen extends StatelessWidget {
   const PlayCaveScreen({super.key});
+
+  static const String _fireflyAsset = 'assets/images/firefly.png';
+  static const String _starAsset = 'assets/images/star_cute.png';
+  static const String _cloudAsset = 'assets/images/cloud_cute.png';
+  static const String _eggAsset = 'assets/images/dragon_egg_cute.png';
 
   @override
   Widget build(BuildContext context) {
@@ -115,13 +121,35 @@ class PlayCaveScreen extends StatelessWidget {
                               title: 'Повтори за светлячками',
                               subtitle:
                                   'Запоминай, кто загорелся, и повторяй последовательность',
-                              preview: const _MiniFireflyPreview(),
+                              preview: const _MiniFireflyPreview(
+                                assetPath: _fireflyAsset,
+                              ),
                               buttonColor: const Color(0xFF5AAE63),
                               onTap: () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute<void>(
                                     builder: (_) =>
                                         const FireflySequenceGameScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 18),
+                            _GameTile(
+                              title: 'Лови звёздочки',
+                              subtitle:
+                                  'Лови падающие звёздочки и не трогай облачка и яйца',
+                              preview: const _MiniCatchStarsPreview(
+                                starAsset: _starAsset,
+                                cloudAsset: _cloudAsset,
+                                eggAsset: _eggAsset,
+                              ),
+                              buttonColor: const Color(0xFFF4A62A),
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) =>
+                                        const CatchStarsGameScreen(),
                                   ),
                                 );
                               },
@@ -324,41 +352,57 @@ class _MiniMemoryPreview extends StatelessWidget {
 }
 
 class _MiniFireflyPreview extends StatelessWidget {
-  const _MiniFireflyPreview();
+  final String assetPath;
+
+  const _MiniFireflyPreview({
+    required this.assetPath,
+  });
 
   @override
   Widget build(BuildContext context) {
-    Widget glowDot({required bool active}) {
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: active ? 40 : 31,
-        height: active ? 40 : 31,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: active
-              ? const Color(0xFFFFF36A)
-              : const Color(0xFF85A957),
-          border: Border.all(
-            color: Colors.white,
-            width: 2.5,
-          ),
-          boxShadow: active
-              ? const [
-                  BoxShadow(
-                    color: Color(0xAAFFF36A),
-                    blurRadius: 18,
-                    spreadRadius: 5,
+    Widget previewFirefly({
+      required double size,
+      required Alignment alignment,
+      required bool glowing,
+      required double rotation,
+    }) {
+      return Align(
+        alignment: alignment,
+        child: Transform.rotate(
+          angle: rotation,
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: glowing ? size * 1.05 : size * .78,
+                  height: glowing ? size * 1.05 : size * .78,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: glowing
+                        ? const Color(0x66FFF36A)
+                        : const Color(0x22D5FF80),
+                    boxShadow: glowing
+                        ? const [
+                            BoxShadow(
+                              color: Color(0xAAFFF36A),
+                              blurRadius: 22,
+                              spreadRadius: 5,
+                            ),
+                          ]
+                        : const [],
                   ),
-                ]
-              : const [],
-        ),
-        child: const Center(
-          child: Text(
-            '•',
-            style: TextStyle(
-              color: Color(0xFF2B4434),
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
+                ),
+                Image.asset(
+                  assetPath,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.contain,
+                ),
+              ],
             ),
           ),
         ),
@@ -366,34 +410,210 @@ class _MiniFireflyPreview extends StatelessWidget {
     }
 
     return Container(
-      height: 102,
-      width: 190,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+      height: 112,
+      width: 210,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
         color: const Color(0xFF123B50),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Stack(
         children: [
-          Align(
-            alignment: const Alignment(-.9, -.65),
-            child: glowDot(active: false),
+          previewFirefly(
+            size: 42,
+            alignment: const Alignment(-.92, -.65),
+            glowing: false,
+            rotation: -.18,
+          ),
+          previewFirefly(
+            size: 56,
+            alignment: const Alignment(.02, -.82),
+            glowing: true,
+            rotation: 0,
+          ),
+          previewFirefly(
+            size: 44,
+            alignment: const Alignment(.92, -.50),
+            glowing: false,
+            rotation: .15,
+          ),
+          previewFirefly(
+            size: 40,
+            alignment: const Alignment(-.68, .78),
+            glowing: false,
+            rotation: -.08,
+          ),
+          previewFirefly(
+            size: 43,
+            alignment: const Alignment(.70, .72),
+            glowing: false,
+            rotation: .09,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniCatchStarsPreview extends StatelessWidget {
+  final String starAsset;
+  final String cloudAsset;
+  final String eggAsset;
+
+  const _MiniCatchStarsPreview({
+    required this.starAsset,
+    required this.cloudAsset,
+    required this.eggAsset,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget fallingGlow({
+      required double size,
+      required Color color,
+      required Alignment alignment,
+      required Widget child,
+      required double rotation,
+    }) {
+      return Align(
+        alignment: alignment,
+        child: Transform.rotate(
+          angle: rotation,
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: size * .72,
+                  height: size * .72,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: color,
+                        blurRadius: 16,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                ),
+                child,
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget streak(double height, Alignment alignment) {
+      return Align(
+        alignment: alignment,
+        child: Container(
+          width: 5,
+          height: height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.white.withValues(alpha: 0),
+                Colors.white.withValues(alpha: .28),
+                Colors.white.withValues(alpha: .02),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 118,
+      width: 220,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF203B74),
+            Color(0xFF253668),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Stack(
+        children: [
+          streak(34, const Alignment(-.58, -.66)),
+          streak(30, const Alignment(.06, -.60)),
+          streak(32, const Alignment(.68, -.52)),
+          fallingGlow(
+            size: 46,
+            color: const Color(0x55FFE16A),
+            alignment: const Alignment(-.58, -.12),
+            rotation: -.10,
+            child: Image.asset(
+              starAsset,
+              width: 40,
+              height: 40,
+              fit: BoxFit.contain,
+            ),
+          ),
+          fallingGlow(
+            size: 58,
+            color: const Color(0x77FFE16A),
+            alignment: const Alignment(.02, .14),
+            rotation: .08,
+            child: Image.asset(
+              starAsset,
+              width: 50,
+              height: 50,
+              fit: BoxFit.contain,
+            ),
           ),
           Align(
-            alignment: const Alignment(.05, -.9),
-            child: glowDot(active: true),
+            alignment: const Alignment(.70, -.20),
+            child: Transform.rotate(
+              angle: .08,
+              child: Image.asset(
+                cloudAsset,
+                width: 42,
+                height: 42,
+                fit: BoxFit.contain,
+              ),
+            ),
           ),
           Align(
-            alignment: const Alignment(.9, -.55),
-            child: glowDot(active: false),
+            alignment: const Alignment(.74, .56),
+            child: Transform.rotate(
+              angle: .12,
+              child: Image.asset(
+                eggAsset,
+                width: 34,
+                height: 34,
+                fit: BoxFit.contain,
+              ),
+            ),
           ),
           Align(
-            alignment: const Alignment(-.65, .85),
-            child: glowDot(active: false),
-          ),
-          Align(
-            alignment: const Alignment(.7, .75),
-            child: glowDot(active: false),
+            alignment: const Alignment(-.80, .66),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Text(
+                '+1',
+                style: TextStyle(
+                  color: Color(0xFFFFE89A),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
           ),
         ],
       ),

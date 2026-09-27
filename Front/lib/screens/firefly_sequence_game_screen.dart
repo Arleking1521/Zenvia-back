@@ -12,12 +12,14 @@ class FireflySequenceGameScreen extends StatefulWidget {
 
 class _FireflySequenceGameScreenState
     extends State<FireflySequenceGameScreen> {
-  static const int _fireflyCount = 6;
   static const int _maxRounds = 6;
+  static const String _fireflyAsset = 'assets/images/firefly.png';
 
   final math.Random _random = math.Random();
 
+  _FireflyDifficulty? _difficulty;
   final List<int> _sequence = <int>[];
+
   int _round = 1;
   int _playerStep = 0;
   int? _activeFirefly;
@@ -28,17 +30,27 @@ class _FireflySequenceGameScreenState
   String _message = 'Запомни, как загораются светлячки';
   int _sessionToken = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    _resetGameState();
+  int get _fireflyCount => _difficulty?.fireflyCount ?? 0;
+
+  void _selectDifficulty(_FireflyDifficulty difficulty) {
+    setState(() {
+      _difficulty = difficulty;
+      _resetGameState();
+    });
   }
 
   void _resetGameState() {
     _sessionToken += 1;
+
     _sequence
       ..clear()
-      ..addAll(List<int>.generate(3, (_) => _random.nextInt(_fireflyCount)));
+      ..addAll(
+        List<int>.generate(
+          3,
+          (_) => _random.nextInt(_fireflyCount),
+        ),
+      );
+
     _round = 1;
     _playerStep = 0;
     _activeFirefly = null;
@@ -50,11 +62,28 @@ class _FireflySequenceGameScreenState
   }
 
   void _restartGame() {
+    if (_difficulty == null) return;
     setState(_resetGameState);
   }
 
+  void _showDifficultySelection() {
+    setState(() {
+      _sessionToken += 1;
+      _difficulty = null;
+      _sequence.clear();
+      _round = 1;
+      _playerStep = 0;
+      _activeFirefly = null;
+      _pressedFirefly = null;
+      _showingSequence = false;
+      _waitingForPlayer = false;
+      _started = false;
+      _message = 'Запомни, как загораются светлячки';
+    });
+  }
+
   Future<void> _startGame() async {
-    if (_showingSequence) return;
+    if (_showingSequence || _difficulty == null) return;
 
     setState(() {
       _started = true;
@@ -64,7 +93,7 @@ class _FireflySequenceGameScreenState
   }
 
   Future<void> _playSequence() async {
-    if (!mounted) return;
+    if (!mounted || _difficulty == null) return;
 
     final token = ++_sessionToken;
 
@@ -103,7 +132,9 @@ class _FireflySequenceGameScreenState
   }
 
   Future<void> _onFireflyTap(int index) async {
-    if (!_waitingForPlayer || _showingSequence) return;
+    if (!_waitingForPlayer || _showingSequence || _difficulty == null) {
+      return;
+    }
 
     final token = _sessionToken;
 
@@ -127,6 +158,7 @@ class _FireflySequenceGameScreenState
 
       await Future<void>.delayed(const Duration(milliseconds: 850));
       if (!mounted || token != _sessionToken) return;
+
       await _playSequence();
       return;
     }
@@ -148,6 +180,7 @@ class _FireflySequenceGameScreenState
     if (_round >= _maxRounds) {
       await Future<void>.delayed(const Duration(milliseconds: 650));
       if (!mounted || token != _sessionToken) return;
+
       await _showFinishedDialog();
       return;
     }
@@ -164,10 +197,14 @@ class _FireflySequenceGameScreenState
 
     await Future<void>.delayed(const Duration(milliseconds: 600));
     if (!mounted || token != _sessionToken) return;
+
     await _playSequence();
   }
 
   Future<void> _showFinishedDialog() async {
+    final difficulty = _difficulty;
+    if (difficulty == null) return;
+
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -180,11 +217,13 @@ class _FireflySequenceGameScreenState
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                '✨🪲✨',
-                style: TextStyle(fontSize: 48),
+              Image.asset(
+                _fireflyAsset,
+                width: 92,
+                height: 92,
+                fit: BoxFit.contain,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               const Text(
                 'Ты повторил всё!',
                 textAlign: TextAlign.center,
@@ -195,13 +234,13 @@ class _FireflySequenceGameScreenState
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Светлячки очень довольны!',
+              Text(
+                '${difficulty.title} • ${difficulty.fireflyCount} светлячков',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Color(0xFF5C6F88),
                   fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 20),
@@ -225,7 +264,23 @@ class _FireflySequenceGameScreenState
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    _showDifficultySelection();
+                  },
+                  child: const Text(
+                    'Выбрать сложность',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
               SizedBox(
                 width: double.infinity,
                 child: TextButton(
@@ -250,7 +305,7 @@ class _FireflySequenceGameScreenState
 
   @override
   Widget build(BuildContext context) {
-    final sequenceLength = _sequence.length;
+    final difficulty = _difficulty;
 
     return Scaffold(
       body: Stack(
@@ -278,189 +333,19 @@ class _FireflySequenceGameScreenState
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
               child: Column(
                 children: [
-                  Row(
-                    children: [
-                      _CircleHeaderButton(
-                        tooltip: 'Назад',
-                        icon: Icons.arrow_back_rounded,
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text(
-                          'Повтори за светлячками',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 21,
-                            fontWeight: FontWeight.w900,
-                            shadows: [
-                              Shadow(
-                                color: Color(0x88000000),
-                                blurRadius: 6,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      _CircleHeaderButton(
-                        tooltip: 'Начать заново',
-                        icon: Icons.refresh_rounded,
-                        onPressed: _restartGame,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(18, 12, 18, 13),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .90),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Раунд $_round/$_maxRounds',
-                                style: const TextStyle(
-                                  color: Color(0xFF274B73),
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              '$sequenceLength ${_signalWord(sequenceLength)}',
-                              style: const TextStyle(
-                                color: Color(0xFF5C6F88),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _message,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Color(0xFF174F86),
-                            fontSize: 17,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
+                  _TopBar(
+                    hasDifficulty: difficulty != null,
+                    onBack: () => Navigator.of(context).pop(),
+                    onChangeDifficulty: _showDifficultySelection,
+                    onRestart: _restartGame,
                   ),
                   const SizedBox(height: 12),
                   Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final boardSize = math.min(
-                          constraints.maxWidth,
-                          constraints.maxHeight,
-                        );
-                        final fireflySize =
-                            (boardSize * .205).clamp(64.0, 94.0).toDouble();
-
-                        return Center(
-                          child: SizedBox(
-                            width: boardSize,
-                            height: boardSize,
-                            child: Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: Container(
-                                    margin: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF082B43)
-                                          .withValues(alpha: .38),
-                                      borderRadius: BorderRadius.circular(42),
-                                      border: Border.all(
-                                        color: Colors.white
-                                            .withValues(alpha: .13),
-                                        width: 2,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                ...List<Widget>.generate(
-                                  _fireflyCount,
-                                  (index) {
-                                    final alignment = _fireflyAlignments[index];
-                                    final glowing = _activeFirefly == index ||
-                                        _pressedFirefly == index;
-
-                                    return Align(
-                                      alignment: alignment,
-                                      child: _FireflyButton(
-                                        size: fireflySize,
-                                        glowing: glowing,
-                                        enabled: _waitingForPlayer,
-                                        onTap: () => _onFireflyTap(index),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                if (!_started)
-                                  Center(
-                                    child: FilledButton.icon(
-                                      onPressed: _startGame,
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFF5AAE63),
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 28,
-                                          vertical: 15,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(24),
-                                        ),
-                                      ),
-                                      icon: const Icon(
-                                        Icons.play_arrow_rounded,
-                                        size: 28,
-                                      ),
-                                      label: const Text(
-                                        'Начать',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _showingSequence
-                        ? 'Сейчас только смотри 👀'
-                        : _waitingForPlayer
-                            ? 'Нажимай на светлячков по порядку 👆'
-                            : 'Готов? Светлячки покажут последовательность',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: .92),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      shadows: const [
-                        Shadow(
-                          color: Color(0x99000000),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
+                    child: difficulty == null
+                        ? _DifficultyPicker(
+                            onSelected: _selectDifficulty,
+                          )
+                        : _buildGame(difficulty),
                   ),
                 ],
               ),
@@ -471,28 +356,522 @@ class _FireflySequenceGameScreenState
     );
   }
 
+  Widget _buildGame(_FireflyDifficulty difficulty) {
+    final sequenceLength = _sequence.length;
+
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 13),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .90),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Раунд $_round/$_maxRounds',
+                      style: const TextStyle(
+                        color: Color(0xFF274B73),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '$sequenceLength ${_signalWord(sequenceLength)}',
+                    style: const TextStyle(
+                      color: Color(0xFF5C6F88),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    difficulty.title,
+                    style: TextStyle(
+                      color: difficulty.accent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${difficulty.fireflyCount} светлячков',
+                    style: const TextStyle(
+                      color: Color(0xFF6D7E92),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF174F86),
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final boardSize = math.min(
+                constraints.maxWidth,
+                constraints.maxHeight,
+              );
+
+              final fireflySize = _fireflySizeFor(
+                boardSize,
+                difficulty.fireflyCount,
+              );
+
+              final alignments =
+                  _alignmentsFor(difficulty.fireflyCount);
+
+              return Center(
+                child: SizedBox(
+                  width: boardSize,
+                  height: boardSize,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: Container(
+                          margin: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF082B43)
+                                .withValues(alpha: .34),
+                            borderRadius: BorderRadius.circular(42),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: .13),
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                      ...List<Widget>.generate(
+                        difficulty.fireflyCount,
+                        (index) {
+                          final glowing = _activeFirefly == index ||
+                              _pressedFirefly == index;
+
+                          return Align(
+                            alignment: alignments[index],
+                            child: _FireflyButton(
+                              assetPath: _fireflyAsset,
+                              size: fireflySize,
+                              glowing: glowing,
+                              enabled: _waitingForPlayer,
+                              onTap: () => _onFireflyTap(index),
+                            ),
+                          );
+                        },
+                      ),
+                      if (!_started)
+                        Center(
+                          child: FilledButton.icon(
+                            onPressed: _startGame,
+                            style: FilledButton.styleFrom(
+                              backgroundColor:
+                                  const Color(0xFF5AAE63),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 28,
+                                vertical: 15,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(24),
+                              ),
+                            ),
+                            icon: const Icon(
+                              Icons.play_arrow_rounded,
+                              size: 28,
+                            ),
+                            label: const Text(
+                              'Начать',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _showingSequence
+              ? 'Сейчас только смотри 👀'
+              : _waitingForPlayer
+                  ? 'Нажимай на светлячков по порядку 👆'
+                  : 'Готов? Светлячки покажут последовательность',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: .92),
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            shadows: const [
+              Shadow(
+                color: Color(0x99000000),
+                blurRadius: 4,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  double _fireflySizeFor(double boardSize, int count) {
+    switch (count) {
+      case 4:
+        return (boardSize * .27).clamp(82.0, 122.0).toDouble();
+      case 6:
+        return (boardSize * .225).clamp(68.0, 108.0).toDouble();
+      case 8:
+        return (boardSize * .19).clamp(58.0, 92.0).toDouble();
+      case 10:
+        return (boardSize * .165).clamp(50.0, 80.0).toDouble();
+      default:
+        return (boardSize * .20).clamp(58.0, 96.0).toDouble();
+    }
+  }
+
+  List<Alignment> _alignmentsFor(int count) {
+    switch (count) {
+      case 4:
+        return const [
+          Alignment(-.55, -.50),
+          Alignment(.55, -.50),
+          Alignment(-.55, .50),
+          Alignment(.55, .50),
+        ];
+      case 6:
+        return const [
+          Alignment(-.62, -.58),
+          Alignment(.02, -.76),
+          Alignment(.64, -.48),
+          Alignment(-.66, .32),
+          Alignment(.02, .62),
+          Alignment(.66, .26),
+        ];
+      case 8:
+        return const [
+          Alignment(-.62, -.67),
+          Alignment(.00, -.79),
+          Alignment(.62, -.67),
+          Alignment(-.76, -.08),
+          Alignment(.76, -.08),
+          Alignment(-.60, .61),
+          Alignment(.00, .78),
+          Alignment(.60, .61),
+        ];
+      case 10:
+        return const [
+          Alignment(-.68, -.73),
+          Alignment(.00, -.82),
+          Alignment(.68, -.73),
+          Alignment(-.80, -.27),
+          Alignment(.80, -.27),
+          Alignment(-.80, .28),
+          Alignment(.80, .28),
+          Alignment(-.62, .70),
+          Alignment(.00, .82),
+          Alignment(.62, .70),
+        ];
+      default:
+        return const [];
+    }
+  }
+
   String _signalWord(int count) {
     if (count == 3 || count == 4) return 'сигнала';
     return 'сигналов';
   }
+}
 
-  static const List<Alignment> _fireflyAlignments = [
-    Alignment(-.62, -.58),
-    Alignment(.02, -.76),
-    Alignment(.64, -.48),
-    Alignment(-.66, .32),
-    Alignment(.02, .62),
-    Alignment(.66, .26),
-  ];
+class _TopBar extends StatelessWidget {
+  final bool hasDifficulty;
+  final VoidCallback onBack;
+  final VoidCallback onChangeDifficulty;
+  final VoidCallback onRestart;
+
+  const _TopBar({
+    required this.hasDifficulty,
+    required this.onBack,
+    required this.onChangeDifficulty,
+    required this.onRestart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _CircleHeaderButton(
+          tooltip: 'Назад',
+          icon: Icons.arrow_back_rounded,
+          onPressed: onBack,
+        ),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: Text(
+            'Повтори за светлячками',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 21,
+              fontWeight: FontWeight.w900,
+              shadows: [
+                Shadow(
+                  color: Color(0x88000000),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (hasDifficulty) ...[
+          _CircleHeaderButton(
+            tooltip: 'Выбрать сложность',
+            icon: Icons.grid_view_rounded,
+            onPressed: onChangeDifficulty,
+          ),
+          const SizedBox(width: 8),
+          _CircleHeaderButton(
+            tooltip: 'Начать заново',
+            icon: Icons.refresh_rounded,
+            onPressed: onRestart,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _DifficultyPicker extends StatelessWidget {
+  final ValueChanged<_FireflyDifficulty> onSelected;
+
+  const _DifficultyPicker({
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .92),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: const Column(
+            children: [
+              Text(
+                'Выбери сложность',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF174F86),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              SizedBox(height: 5),
+              Text(
+                'Чем больше светлячков, тем сложнее запомнить порядок',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF5C6F88),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.fromLTRB(2, 2, 2, 10),
+            physics: const BouncingScrollPhysics(),
+            gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: .92,
+            ),
+            itemCount: _FireflyDifficulty.values.length,
+            itemBuilder: (context, index) {
+              final difficulty = _FireflyDifficulty.values[index];
+
+              return _DifficultyTile(
+                difficulty: difficulty,
+                onTap: () => onSelected(difficulty),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DifficultyTile extends StatefulWidget {
+  final _FireflyDifficulty difficulty;
+  final VoidCallback onTap;
+
+  const _DifficultyTile({
+    required this.difficulty,
+    required this.onTap,
+  });
+
+  @override
+  State<_DifficultyTile> createState() => _DifficultyTileState();
+}
+
+class _DifficultyTileState extends State<_DifficultyTile> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final difficulty = widget.difficulty;
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 110),
+        scale: _pressed ? .96 : 1,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .95),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: difficulty.accent.withValues(alpha: .55),
+              width: 3,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x25000000),
+                blurRadius: 12,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                child: _FireflyDifficultyPreview(
+                  difficulty: difficulty,
+                ),
+              ),
+              const SizedBox(height: 6),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  difficulty.title,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: difficulty.accent,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '${difficulty.fireflyCount} светлячков',
+                style: const TextStyle(
+                  color: Color(0xFF5C6F88),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FireflyDifficultyPreview extends StatelessWidget {
+  final _FireflyDifficulty difficulty;
+
+  const _FireflyDifficultyPreview({
+    required this.difficulty,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final count = difficulty.fireflyCount;
+    final size = count <= 4
+        ? 34.0
+        : count <= 6
+            ? 29.0
+            : count <= 8
+                ? 25.0
+                : 22.0;
+
+    return Center(
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        runAlignment: WrapAlignment.center,
+        spacing: 3,
+        runSpacing: 3,
+        children: List<Widget>.generate(
+          count,
+          (index) => SizedBox(
+            width: size,
+            height: size,
+            child: Image.asset(
+              'assets/images/firefly.png',
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _FireflyButton extends StatelessWidget {
+  final String assetPath;
   final double size;
   final bool glowing;
   final bool enabled;
   final VoidCallback onTap;
 
   const _FireflyButton({
+    required this.assetPath,
     required this.size,
     required this.glowing,
     required this.enabled,
@@ -508,124 +887,50 @@ class _FireflyButton extends StatelessWidget {
       child: GestureDetector(
         onTap: enabled ? onTap : null,
         child: AnimatedScale(
-          duration: const Duration(milliseconds: 150),
+          duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutBack,
-          scale: glowing ? 1.16 : 1,
+          scale: glowing ? 1.12 : 1,
           child: SizedBox(
             width: size,
             height: size,
             child: Stack(
               alignment: Alignment.center,
+              clipBehavior: Clip.none,
               children: [
                 AnimatedContainer(
-                  duration: const Duration(milliseconds: 170),
-                  width: size * .86,
-                  height: size * .86,
+                  duration: const Duration(milliseconds: 180),
+                  width: glowing ? size * 1.08 : size * .72,
+                  height: glowing ? size * 1.08 : size * .72,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: glowing
                         ? const Color(0x55FFF68A)
-                        : Colors.transparent,
+                        : const Color(0x16D8FF9B),
                     boxShadow: glowing
                         ? const [
                             BoxShadow(
                               color: Color(0xCCFFF36A),
-                              blurRadius: 28,
-                              spreadRadius: 8,
+                              blurRadius: 32,
+                              spreadRadius: 10,
                             ),
                           ]
-                        : const [],
+                        : const [
+                            BoxShadow(
+                              color: Color(0x55B8F072),
+                              blurRadius: 18,
+                              spreadRadius: 2,
+                            ),
+                          ],
                   ),
                 ),
-                Transform.translate(
-                  offset: Offset(-size * .20, -size * .03),
-                  child: Transform.rotate(
-                    angle: -.65,
-                    child: Container(
-                      width: size * .30,
-                      height: size * .48,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .62),
-                        borderRadius: BorderRadius.circular(size),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: .65),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Transform.translate(
-                  offset: Offset(size * .20, -size * .03),
-                  child: Transform.rotate(
-                    angle: .65,
-                    child: Container(
-                      width: size * .30,
-                      height: size * .48,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .62),
-                        borderRadius: BorderRadius.circular(size),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: .65),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Container(
-                  width: size * .31,
-                  height: size * .45,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF293C35),
-                    borderRadius: BorderRadius.circular(size),
-                    border: Border.all(
-                      color: const Color(0xFF10241E),
-                      width: 2,
-                    ),
-                  ),
-                ),
-                Transform.translate(
-                  offset: Offset(0, size * .16),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 170),
-                    width: size * .27,
-                    height: size * .25,
-                    decoration: BoxDecoration(
-                      color: glowing
-                          ? const Color(0xFFFFF36A)
-                          : const Color(0xFF92B95A),
-                      shape: BoxShape.circle,
-                      boxShadow: glowing
-                          ? const [
-                              BoxShadow(
-                                color: Color(0xFFFFF36A),
-                                blurRadius: 18,
-                                spreadRadius: 5,
-                              ),
-                            ]
-                          : const [],
-                    ),
-                  ),
-                ),
-                Transform.translate(
-                  offset: Offset(-size * .065, -size * .14),
-                  child: Container(
-                    width: size * .045,
-                    height: size * .045,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-                Transform.translate(
-                  offset: Offset(size * .065, -size * .14),
-                  child: Container(
-                    width: size * .045,
-                    height: size * .045,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 150),
+                  opacity: enabled ? 1 : .95,
+                  child: Image.asset(
+                    assetPath,
+                    width: size,
+                    height: size,
+                    fit: BoxFit.contain,
                   ),
                 ),
               ],
@@ -663,4 +968,37 @@ class _CircleHeaderButton extends StatelessWidget {
       ),
     );
   }
+}
+
+enum _FireflyDifficulty {
+  easy(
+    title: 'Лёгкий',
+    fireflyCount: 4,
+    accent: Color(0xFF4EAE66),
+  ),
+  medium(
+    title: 'Средний',
+    fireflyCount: 6,
+    accent: Color(0xFF2E8ED5),
+  ),
+  hard(
+    title: 'Сложный',
+    fireflyCount: 8,
+    accent: Color(0xFFE48B34),
+  ),
+  superHard(
+    title: 'Суперсложный',
+    fireflyCount: 10,
+    accent: Color(0xFF9B58C8),
+  );
+
+  final String title;
+  final int fireflyCount;
+  final Color accent;
+
+  const _FireflyDifficulty({
+    required this.title,
+    required this.fireflyCount,
+    required this.accent,
+  });
 }

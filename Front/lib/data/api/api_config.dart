@@ -1,16 +1,26 @@
 class ApiConfig {
-  /// Для реального телефона укажи IP компьютера:
-  /// flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8000
+  /// Production backend по умолчанию.
   ///
-  /// Для production:
-  /// flutter run --dart-define=API_BASE_URL=https://api.example.com
-  static const String baseUrl = String.fromEnvironment(
+  /// Обычная release-сборка:
+  /// flutter build apk --release
+  ///
+  /// При необходимости адрес можно переопределить:
+  /// flutter build apk --release \
+  ///   --dart-define=API_BASE_URL=https://another.example.com/path/
+  static const String _environmentBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://127.0.0.1:8000',
+    defaultValue: 'https://websw.ru/zenvia/',
   );
 
-  static const String accountPrefix = '/api/account';
-  static const String apiPrefix = '/api';
+  /// Dio корректнее работает с backend, размещённым в подпапке (/zenvia/),
+  /// когда baseUrl заканчивается на '/', а относительные API-пути не
+  /// начинаются с '/'. Поэтому нормализуем URL в одном месте.
+  static String get baseUrl => _environmentBaseUrl.endsWith('/')
+      ? _environmentBaseUrl
+      : '$_environmentBaseUrl/';
+
+  static const String accountPrefix = 'api/account';
+  static const String apiPrefix = 'api';
 
   static String account(String path) => _join(accountPrefix, path);
   static String api(String path) => _join(apiPrefix, path);
