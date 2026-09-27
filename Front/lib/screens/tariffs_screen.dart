@@ -4,6 +4,11 @@ import '../data/parent_repository.dart';
 import '../models/subscription.dart';
 import '../theme/app_colors.dart';
 
+const bool _fakePaymentsEnabled = bool.fromEnvironment(
+  'FAKE_PAYMENTS',
+  defaultValue: true,
+);
+
 class TariffsScreen extends StatefulWidget {
   final ParentRepository repository;
   const TariffsScreen({super.key, required this.repository});
@@ -81,10 +86,173 @@ class _TariffsScreenState extends State<TariffsScreen> {
     }
   }
 
+  Future<FakePaymentScenario?> _chooseFakePaymentScenario(
+    TariffPlan plan,
+  ) {
+    return showModalBottomSheet<FakePaymentScenario>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        Widget option({
+          required FakePaymentScenario scenario,
+          required IconData icon,
+          required String subtitle,
+          required Color color,
+        }) {
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundColor: color.withValues(alpha: .14),
+              child: Icon(icon, color: color),
+            ),
+            title: Text(
+              scenario.title,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            subtitle: Text(subtitle),
+            onTap: () => Navigator.of(sheetContext).pop(scenario),
+          );
+        }
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Тестовая оплата',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${plan.title} • ${plan.price} ${plan.currency}',
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                option(
+                  scenario: FakePaymentScenario.success,
+                  icon: Icons.check_circle_rounded,
+                  subtitle: 'Подписка сразу станет активной.',
+                  color: AppColors.primary,
+                ),
+                option(
+                  scenario: FakePaymentScenario.declined,
+                  icon: Icons.credit_card_off_rounded,
+                  subtitle: 'Имитировать отказ банка.',
+                  color: AppColors.coral,
+                ),
+                option(
+                  scenario: FakePaymentScenario.cancelled,
+                  icon: Icons.close_rounded,
+                  subtitle: 'Имитировать отмену оплаты родителем.',
+                  color: AppColors.purple,
+                ),
+                option(
+                  scenario: FakePaymentScenario.pending,
+                  icon: Icons.hourglass_top_rounded,
+                  subtitle: 'Создать подписку в статусе ожидания.',
+                  color: AppColors.goldDark,
+                ),
+                option(
+                  scenario: FakePaymentScenario.networkError,
+                  icon: Icons.wifi_off_rounded,
+                  subtitle: 'Имитировать ошибку платёжного сервиса.',
+                  color: AppColors.deepBlue,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showFakePaymentResult(FakePaymentResult result) async {
+    if (!mounted) return;
+
+    final success = result.result == 'success';
+    final pending = result.result == 'pending';
+    final title = success
+        ? 'Тестовая оплата успешна'
+        : pending
+            ? 'Платёж ожидает подтверждения'
+            : result.result == 'declined'
+                ? 'Платёж отклонён'
+                : result.result == 'cancelled'
+                    ? 'Оплата отменена'
+                    : 'Тестовая оплата';
+
+    final subscription = result.subscription;
+    final period = subscription?.endsAt == null
+        ? ''
+        : '\nПодписка действует до: '
+            '${subscription!.endsAt!.toLocal().toString().split(' ').first}.';
+
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text('${result.message}$period'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Понятно'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _buy(
     TariffPlan plan, {
     String? promoCode,
   }) async {
+    if (_fakePaymentsEnabled) {
+      final scenario = await _chooseFakePaymentScenario(plan);
+      if (scenario == null || !mounted) return;
+
+      setState(() => _processingId = plan.id);
+      try {
+        final result = await widget.repository.fakePurchase(
+          plan.id,
+          promoCode: promoCode,
+          scenario: scenario,
+        );
+        if (!mounted) return;
+
+        await _showFakePaymentResult(result);
+
+        if (result.subscription != null) {
+          setState(() {
+            _promoOffer = null;
+            _promoController.clear();
+            _future = _load();
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          await showDialog<void>(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('Ошибка тестовой оплаты'),
+              content: Text(e.toString()),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Закрыть'),
+                ),
+              ],
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _processingId = null);
+      }
+      return;
+    }
+
     setState(() => _processingId = plan.id);
     try {
       final sub = await widget.repository.createSubscription(
@@ -97,9 +265,7 @@ class _TariffsScreenState extends State<TariffsScreen> {
         builder: (_) => AlertDialog(
           title: const Text('Тариф оформлен'),
           content: Text(
-            'Создана подписка со статусом «${sub.statusLabel}». '
-            'Текущий backend пока не подключён к платёжному провайдеру, '
-            'поэтому реальная оплата и активация выполняются отдельно.',
+            'Создана подписка со статусом «${sub.statusLabel}».',
           ),
           actions: [
             TextButton(
@@ -122,6 +288,48 @@ class _TariffsScreenState extends State<TariffsScreen> {
       }
     } finally {
       if (mounted) setState(() => _processingId = null);
+    }
+  }
+
+  Future<void> _resetFakeSubscription() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Сбросить тестовую подписку?'),
+        content: const Text(
+          'Будут удалены только fake-подписки текущего тестового аккаунта. '
+          'После этого можно снова проверить покупку и промокоды.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Сбросить'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await widget.repository.resetFakeSubscription();
+      if (!mounted) return;
+      setState(() {
+        _promoOffer = null;
+        _promoController.clear();
+        _future = _load();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Тестовая подписка сброшена.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
     }
   }
 
@@ -203,9 +411,13 @@ class _TariffsScreenState extends State<TariffsScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : Text(
-                        promoCode == null
-                            ? 'Оформить тариф'
-                            : 'Подключить по промокоду',
+                        _fakePaymentsEnabled
+                            ? (promoCode == null
+                                ? 'Тестовая оплата'
+                                : 'Тестовая оплата по промокоду')
+                            : (promoCode == null
+                                ? 'Оформить тариф'
+                                : 'Подключить по промокоду'),
                       ),
               ),
             ),
@@ -325,6 +537,45 @@ class _TariffsScreenState extends State<TariffsScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              if (_fakePaymentsEnabled) ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.gold.withValues(alpha: .18),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: AppColors.goldDark.withValues(alpha: .35),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.science_rounded, color: AppColors.goldDark),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Режим тестовой оплаты. Реальные деньги не списываются.',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (data.current?.paymentProvider == 'fake') ...[
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          onPressed: _resetFakeSubscription,
+                          icon: const Icon(Icons.restart_alt_rounded),
+                          label: const Text('Сбросить тестовую подписку'),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               if (data.current != null)
                 Card(
                   child: ListTile(

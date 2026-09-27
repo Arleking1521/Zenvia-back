@@ -296,6 +296,54 @@ class ApiParentRepository implements ParentRepository {
     }
   }
 
+  @override
+  Future<FakePaymentResult> fakePurchase(
+    int tariffId, {
+    String? promoCode,
+    required FakePaymentScenario scenario,
+  }) async {
+    try {
+      final payload = <String, dynamic>{
+        'tariff': tariffId,
+        'scenario': scenario.apiValue,
+      };
+      if (promoCode != null && promoCode.trim().isNotEmpty) {
+        payload['promo_code'] = promoCode.trim();
+      }
+
+      final response = await client.dio.post<Map<String, dynamic>>(
+        ApiConfig.account('subscriptions/fake-purchase/'),
+        data: payload,
+      );
+      final data = response.data ?? const <String, dynamic>{};
+      final subscriptionRow = _map(data['subscription']);
+      return FakePaymentResult(
+        result: data['result']?.toString() ?? '',
+        message: data['message']?.toString() ?? '',
+        subscription:
+            subscriptionRow == null ? null : _subscription(subscriptionRow),
+      );
+    } on DioException catch (e) {
+      throw ParentApiException(
+        _message(e, 'Ошибка тестовой оплаты.'),
+      );
+    }
+  }
+
+
+  @override
+  Future<void> resetFakeSubscription() async {
+    try {
+      await client.dio.post<Map<String, dynamic>>(
+        ApiConfig.account('subscriptions/fake-reset/'),
+      );
+    } on DioException catch (e) {
+      throw ParentApiException(
+        _message(e, 'Не удалось сбросить тестовую подписку.'),
+      );
+    }
+  }
+
 
   ChildProfileAccess _childAccess(Map<String, dynamic> row) => ChildProfileAccess(
         activeSubscription: row['active_subscription'] == true,
@@ -371,6 +419,8 @@ class ApiParentRepository implements ParentRepository {
       endsAt: DateTime.tryParse(row['ends_at']?.toString() ?? ''),
       autoRenew: row['auto_renew'] == true,
       isCurrent: row['is_current'] == true,
+      paymentProvider: row['payment_provider']?.toString() ?? '',
+      externalPaymentId: row['external_payment_id']?.toString() ?? '',
     );
   }
 

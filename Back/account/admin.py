@@ -119,7 +119,31 @@ class PromoCodeUsageAdmin(admin.ModelAdmin):
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'parent', 'tariff', 'status', 'starts_at', 'ends_at', 'created_at')
-    list_filter = ('status', 'tariff')
+    list_display = (
+        'id',
+        'parent',
+        'tariff',
+        'status',
+        'payment_provider',
+        'starts_at',
+        'ends_at',
+        'created_at',
+    )
+    list_filter = ('status', 'payment_provider', 'tariff')
     search_fields = ('parent__email', 'parent__first_name', 'external_payment_id')
     readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        ('Подписка', {
+            'fields': ('parent', 'tariff', 'status', 'auto_renew'),
+        }),
+        ('Срок действия', {
+            'fields': ('starts_at', 'ends_at'),
+        }),
+        ('Оплата', {
+            'fields': ('payment_provider', 'external_payment_id'),
+        }),
+        ('Служебное', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )

@@ -28,6 +28,8 @@ class SubscriptionInfo {
   final DateTime? endsAt;
   final bool autoRenew;
   final bool isCurrent;
+  final String paymentProvider;
+  final String externalPaymentId;
 
   const SubscriptionInfo({
     required this.id,
@@ -37,6 +39,8 @@ class SubscriptionInfo {
     required this.endsAt,
     required this.autoRenew,
     required this.isCurrent,
+    this.paymentProvider = '',
+    this.externalPaymentId = '',
   });
 
   String get statusLabel {
@@ -67,5 +71,57 @@ class KindergartenPromoOffer {
     required this.kindergartenId,
     required this.kindergartenName,
     required this.tariff,
+  });
+}
+
+enum FakePaymentScenario {
+  success,
+  declined,
+  cancelled,
+  pending,
+  networkError,
+}
+
+extension FakePaymentScenarioX on FakePaymentScenario {
+  String get apiValue {
+    switch (this) {
+      case FakePaymentScenario.success:
+        return 'success';
+      case FakePaymentScenario.declined:
+        return 'declined';
+      case FakePaymentScenario.cancelled:
+        return 'cancelled';
+      case FakePaymentScenario.pending:
+        return 'pending';
+      case FakePaymentScenario.networkError:
+        return 'network_error';
+    }
+  }
+
+  String get title {
+    switch (this) {
+      case FakePaymentScenario.success:
+        return 'Успешная оплата';
+      case FakePaymentScenario.declined:
+        return 'Отклонено банком';
+      case FakePaymentScenario.cancelled:
+        return 'Пользователь отменил';
+      case FakePaymentScenario.pending:
+        return 'Платёж в ожидании';
+      case FakePaymentScenario.networkError:
+        return 'Ошибка сети';
+    }
+  }
+}
+
+class FakePaymentResult {
+  final String result;
+  final String message;
+  final SubscriptionInfo? subscription;
+
+  const FakePaymentResult({
+    required this.result,
+    required this.message,
+    required this.subscription,
   });
 }

@@ -473,3 +473,22 @@ class SubscriptionCreateSerializer(serializers.Serializer):
                 )
 
         return subscription
+
+class FakePaymentPurchaseSerializer(SubscriptionCreateSerializer):
+    SCENARIO_SUCCESS = 'success'
+    SCENARIO_DECLINED = 'declined'
+    SCENARIO_CANCELLED = 'cancelled'
+    SCENARIO_PENDING = 'pending'
+    SCENARIO_NETWORK_ERROR = 'network_error'
+
+    scenario = serializers.ChoiceField(
+        choices=(
+            SCENARIO_SUCCESS,
+            SCENARIO_DECLINED,
+            SCENARIO_CANCELLED,
+            SCENARIO_PENDING,
+            SCENARIO_NETWORK_ERROR,
+        ),
+        default=SCENARIO_SUCCESS,
+    )
+

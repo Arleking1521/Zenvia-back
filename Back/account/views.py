@@ -1,4 +1,8 @@
+from datetime import timedelta
+from uuid import uuid4
+
 from django.db import transaction
+from django.utils import timezone
 
 from rest_framework import status
 from rest_framework.decorators import action
@@ -12,6 +16,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User, Avatar, ChildProfile, TariffPlan, Subscription
 from .services import get_child_profile_access
+from .fake_payments import fake_payments_enabled_for
 from .serializers import (
     ParentRegisterSerializer,
     ParentLoginSerializer,
@@ -25,6 +30,7 @@ from .serializers import (
     SubscriptionSerializer,
     SubscriptionCreateSerializer,
     PromoCodeValidateSerializer,
+    FakePaymentPurchaseSerializer,
 )
 
 
@@ -222,6 +228,116 @@ class SubscriptionViewSet(
             SubscriptionSerializer(subscription, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=False, methods=['post'], url_path='fake-purchase')
+    def fake_purchase(self, request):
+        if not fake_payments_enabled_for(request.user):
+            return Response(
+                {
+                    'detail': (
+                        'Тестовая оплата отключена или этот аккаунт не включён '
+                        'в список тестировщиков.'
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = FakePaymentPurchaseSerializer(
+            data=request.data,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        scenario = serializer.validated_data.get(
+            'scenario',
+            FakePaymentPurchaseSerializer.SCENARIO_SUCCESS,
+        )
+
+        if scenario == FakePaymentPurchaseSerializer.SCENARIO_DECLINED:
+            return Response({
+                'result': 'declined',
+                'message': 'Тестовый банк отклонил платёж.',
+                'subscription': None,
+            })
+
+        if scenario == FakePaymentPurchaseSerializer.SCENARIO_CANCELLED:
+            return Response({
+                'result': 'cancelled',
+                'message': 'Пользователь отменил тестовую оплату.',
+                'subscription': None,
+            })
+
+        if scenario == FakePaymentPurchaseSerializer.SCENARIO_NETWORK_ERROR:
+            return Response(
+                {
+                    'result': 'network_error',
+                    'detail': 'Имитация ошибки сети платёжного провайдера.',
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        subscription = serializer.save()
+        subscription.payment_provider = 'fake'
+        subscription.external_payment_id = f'FAKE-{uuid4().hex.upper()}'
+
+        if scenario == FakePaymentPurchaseSerializer.SCENARIO_SUCCESS:
+            now = timezone.now()
+            subscription.status = Subscription.STATUS_ACTIVE
+            subscription.starts_at = now
+            subscription.ends_at = now + timedelta(
+                days=subscription.tariff.duration_days,
+            )
+            result = 'success'
+            message = 'Тестовая оплата успешно проведена.'
+        else:
+            # pending deliberately remains unpaid so the UI can be tested.
+            subscription.status = Subscription.STATUS_PENDING
+            result = 'pending'
+            message = 'Тестовый платёж оставлен в ожидании.'
+
+        subscription.save(update_fields=[
+            'status',
+            'starts_at',
+            'ends_at',
+            'payment_provider',
+            'external_payment_id',
+            'updated_at',
+        ])
+
+        return Response({
+            'result': result,
+            'message': message,
+            'subscription': SubscriptionSerializer(
+                subscription,
+                context={'request': request},
+            ).data,
+        })
+
+    @action(detail=False, methods=['post'], url_path='fake-reset')
+    def fake_reset(self, request):
+        if not fake_payments_enabled_for(request.user):
+            return Response(
+                {
+                    'detail': (
+                        'Тестовая оплата отключена или этот аккаунт не включён '
+                        'в список тестировщиков.'
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        fake_subscriptions = Subscription.objects.filter(
+            parent=request.user,
+            payment_provider='fake',
+        )
+        deleted_count = fake_subscriptions.count()
+        # PromoCodeUsage has CASCADE from Subscription, so test promo usage is
+        # removed too and the same code can be tested again.
+        fake_subscriptions.delete()
+
+        return Response({
+            'reset': True,
+            'deleted_subscriptions': deleted_count,
+        })
 
     @action(detail=False, methods=['get'], url_path='current')
     def current(self, request):

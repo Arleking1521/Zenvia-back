@@ -45,6 +45,12 @@ abstract class ParentRepository {
     int tariffId, {
     String? promoCode,
   });
+  Future<FakePaymentResult> fakePurchase(
+    int tariffId, {
+    String? promoCode,
+    required FakePaymentScenario scenario,
+  });
+  Future<void> resetFakeSubscription();
 }
 
 class ParentApiException implements Exception {
