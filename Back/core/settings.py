@@ -135,14 +135,14 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
-# FORCE_SCRIPT_NAME = "/zenvia"
-STATIC_URL = '/static/'
+FORCE_SCRIPT_NAME = "/zenvia"
+STATIC_URL = '/zenvia/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 # STATICFILES_DIRS = [
 #     os.path.join(BASE_DIR, 'static')
 # ]
 
-MEDIA_URL = '/media/'
+MEDIA_URL = '/zenvia/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 LOCALE_PATHS = [os.path.join(BASE_DIR, 'locale')]
