@@ -54,3 +54,18 @@ class SubscriptionInfo {
     }
   }
 }
+
+
+class KindergartenPromoOffer {
+  final String code;
+  final int kindergartenId;
+  final String kindergartenName;
+  final TariffPlan tariff;
+
+  const KindergartenPromoOffer({
+    required this.code,
+    required this.kindergartenId,
+    required this.kindergartenName,
+    required this.tariff,
+  });
+}

@@ -39,8 +39,12 @@ abstract class ParentRepository {
   Future<bool> verifyParentPin(String pin);
 
   Future<List<TariffPlan>> getTariffs();
+  Future<KindergartenPromoOffer> validatePromoCode(String code);
   Future<SubscriptionInfo?> getCurrentSubscription();
-  Future<SubscriptionInfo> createSubscription(int tariffId);
+  Future<SubscriptionInfo> createSubscription(
+    int tariffId, {
+    String? promoCode,
+  });
 }
 
 class ParentApiException implements Exception {

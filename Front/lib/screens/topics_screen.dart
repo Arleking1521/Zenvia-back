@@ -359,7 +359,7 @@ class _WorldMap extends StatelessWidget {
   }
 }
 
-class _IslandNode extends StatelessWidget {
+class _IslandNode extends StatefulWidget {
   final Topic topic;
   final int number;
   final bool unlocked;
@@ -373,143 +373,215 @@ class _IslandNode extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final completed = topic.isCompleted;
+  State<_IslandNode> createState() => _IslandNodeState();
+}
 
-    return Semantics(
-      button: true,
-      enabled: unlocked,
-      label: unlocked ? 'Тема $number. ${topic.title}' : 'Закрытая тема $number. ${topic.title}',
-      child: GestureDetector(
-        onTap: onTap,
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.topCenter,
-          children: [
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 188,
-              child: AnimatedScale(
-                duration: const Duration(milliseconds: 180),
-                scale: unlocked ? 1 : .96,
-                child: _TopicIslandImage(
-                  topic: topic,
-                  unlocked: unlocked,
+class _IslandNodeState extends State<_IslandNode>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _floatController;
+
+  double get _floatAmplitude {
+    switch (widget.number % 3) {
+      case 0:
+        return 4.5;
+      case 1:
+        return 5.5;
+      default:
+        return 6.0;
+    }
+  }
+
+  double get _floatPhase => widget.number * 1.65;
+
+  Duration get _floatDuration => Duration(
+        milliseconds: 3700 + ((widget.number % 4) * 280),
+      );
+
+  @override
+  void initState() {
+    super.initState();
+    _floatController = AnimationController(
+      vsync: this,
+      duration: _floatDuration,
+    )..repeat();
+  }
+
+  @override
+  void didUpdateWidget(covariant _IslandNode oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.number != widget.number) {
+      _floatController.duration = _floatDuration;
+      if (!_floatController.isAnimating) {
+        _floatController.repeat();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _floatController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final completed = widget.topic.isCompleted;
+    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
+    return AnimatedBuilder(
+      animation: _floatController,
+      builder: (context, child) {
+        final offsetY = reduceMotion
+            ? 0.0
+            : math.sin(
+                  _floatController.value * math.pi * 2 + _floatPhase,
+                ) *
+                _floatAmplitude;
+
+        return Transform.translate(
+          offset: Offset(0, offsetY),
+          child: child,
+        );
+      },
+      child: Semantics(
+        button: true,
+        enabled: widget.unlocked,
+        label: widget.unlocked
+            ? 'Тема ${widget.number}. ${widget.topic.title}'
+            : 'Закрытая тема ${widget.number}. ${widget.topic.title}',
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.topCenter,
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 188,
+                child: AnimatedScale(
+                  duration: const Duration(milliseconds: 180),
+                  scale: widget.unlocked ? 1 : .96,
+                  child: _TopicIslandImage(
+                    topic: widget.topic,
+                    unlocked: widget.unlocked,
+                  ),
                 ),
               ),
-            ),
-            Positioned(
-              left: 18,
-              right: 18,
-              bottom: 8,
-              child: Container(
-                constraints: const BoxConstraints(minHeight: 76),
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-                decoration: BoxDecoration(
-                  color: unlocked
-                      ? Colors.white.withValues(alpha: .97)
-                      : const Color(0xFF536B83).withValues(alpha: .96),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: unlocked
-                        ? Colors.white
-                        : Colors.white.withValues(alpha: .22),
-                    width: 2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: .14),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
+              Positioned(
+                left: 18,
+                right: 18,
+                bottom: 8,
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 76),
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                  decoration: BoxDecoration(
+                    color: widget.unlocked
+                        ? Colors.white.withValues(alpha: .97)
+                        : const Color(0xFF536B83).withValues(alpha: .96),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color: widget.unlocked
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: .22),
+                      width: 2,
                     ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      unlocked ? topic.title : 'Скоро',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: unlocked ? AppColors.deepBlue : Colors.white,
-                        fontSize: 18,
-                        height: 1.05,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    if (unlocked && topic.totalCount > 0) ...[
-                      const SizedBox(height: 7),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(99),
-                        child: LinearProgressIndicator(
-                          value: topic.progress,
-                          minHeight: 6,
-                          backgroundColor: const Color(0xFFE5EEF6),
-                          valueColor: AlwaysStoppedAnimation(
-                            completed ? AppColors.gold : AppColors.primary,
-                          ),
-                        ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: .14),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
                       ),
                     ],
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 69,
-              child: Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: unlocked
-                      ? LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: completed
-                              ? const [Color(0xFFFFE16D), Color(0xFFFFB82F)]
-                              : const [Color(0xFF8BF2C0), Color(0xFF3ED78F)],
-                        )
-                      : const LinearGradient(
-                          colors: [Color(0xFF7A91A8), Color(0xFF50677F)],
-                        ),
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: .16),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                alignment: Alignment.center,
-                child: unlocked
-                    ? Text(
-                        '$number',
-                        style: const TextStyle(
-                          color: AppColors.deepBlue,
-                          fontSize: 22,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.unlocked ? widget.topic.title : 'Скоро',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: widget.unlocked
+                              ? AppColors.deepBlue
+                              : Colors.white,
+                          fontSize: 18,
+                          height: 1.05,
                           fontWeight: FontWeight.w900,
                         ),
-                      )
-                    : const Icon(
-                        Icons.lock_rounded,
-                        color: Colors.white,
-                        size: 24,
                       ),
+                      if (widget.unlocked && widget.topic.totalCount > 0) ...[
+                        const SizedBox(height: 7),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(99),
+                          child: LinearProgressIndicator(
+                            value: widget.topic.progress,
+                            minHeight: 6,
+                            backgroundColor: const Color(0xFFE5EEF6),
+                            valueColor: AlwaysStoppedAnimation(
+                              completed ? AppColors.gold : AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
-            ),
-            if (completed)
-              const Positioned(
-                top: 18,
-                right: 22,
-                child: _CompletedStar(),
+              Positioned(
+                bottom: 69,
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: widget.unlocked
+                        ? LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: completed
+                                ? const [Color(0xFFFFE16D), Color(0xFFFFB82F)]
+                                : const [Color(0xFF8BF2C0), Color(0xFF3ED78F)],
+                          )
+                        : const LinearGradient(
+                            colors: [Color(0xFF7A91A8), Color(0xFF50677F)],
+                          ),
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: .16),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: widget.unlocked
+                      ? Text(
+                          '${widget.number}',
+                          style: const TextStyle(
+                            color: AppColors.deepBlue,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.lock_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                ),
               ),
-          ],
+              if (completed)
+                const Positioned(
+                  top: 18,
+                  right: 22,
+                  child: _CompletedStar(),
+                ),
+            ],
+          ),
         ),
       ),
     );

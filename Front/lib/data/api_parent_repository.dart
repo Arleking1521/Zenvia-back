@@ -240,6 +240,28 @@ class ApiParentRepository implements ParentRepository {
   }
 
   @override
+  Future<KindergartenPromoOffer> validatePromoCode(String code) async {
+    try {
+      final response = await client.dio.post<Map<String, dynamic>>(
+        ApiConfig.account('promo-codes/validate/'),
+        data: {'code': code.trim()},
+      );
+      final data = response.data ?? const <String, dynamic>{};
+      final kindergarten = _map(data['kindergarten']) ?? const <String, dynamic>{};
+      final tariff = _map(data['tariff']) ?? const <String, dynamic>{};
+
+      return KindergartenPromoOffer(
+        code: data['code']?.toString() ?? code.trim().toUpperCase(),
+        kindergartenId: _int(kindergarten['id']),
+        kindergartenName: kindergarten['name']?.toString() ?? '',
+        tariff: _tariff(tariff),
+      );
+    } on DioException catch (e) {
+      throw ParentApiException(_message(e, 'Не удалось проверить промокод.'));
+    }
+  }
+
+  @override
   Future<SubscriptionInfo?> getCurrentSubscription() async {
     try {
       final response = await client.dio.get<dynamic>(
@@ -254,11 +276,19 @@ class ApiParentRepository implements ParentRepository {
   }
 
   @override
-  Future<SubscriptionInfo> createSubscription(int tariffId) async {
+  Future<SubscriptionInfo> createSubscription(
+    int tariffId, {
+    String? promoCode,
+  }) async {
     try {
+      final payload = <String, dynamic>{'tariff': tariffId};
+      if (promoCode != null && promoCode.trim().isNotEmpty) {
+        payload['promo_code'] = promoCode.trim();
+      }
+
       final response = await client.dio.post<Map<String, dynamic>>(
         ApiConfig.account('subscriptions/'),
-        data: {'tariff': tariffId},
+        data: payload,
       );
       return _subscription(response.data ?? const <String, dynamic>{});
     } on DioException catch (e) {

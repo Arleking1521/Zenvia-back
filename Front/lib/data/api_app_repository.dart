@@ -208,6 +208,7 @@ class ApiAppRepository implements AppRepository {
 
     return DragonEvolutionData(
       totalXp: _asInt(current['total_xp']),
+      dragonColor: current['dragon_color']?.toString() ?? 'blue',
       currentLevel: parseLevel(current['current_level']),
       nextLevel: parseLevel(current['next_level']),
       xpToNextLevel: _asInt(current['xp_to_next_level']),

@@ -197,36 +197,12 @@ class ZenviaLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ShaderMask(
-          shaderCallback: (rect) => const LinearGradient(
-            colors: [Color(0xFFFFD94F), Color(0xFFFF8D3C), Color(0xFFFF62A5)],
-          ).createShader(rect),
-          child: Text(
-            'Zenvia',
-            style: TextStyle(
-              fontSize: 44 * scale,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              letterSpacing: -1.5,
-              shadows: const [
-                Shadow(color: Color(0x55000000), blurRadius: 8, offset: Offset(0, 3)),
-              ],
-            ),
-          ),
-        ),
-        Text(
-          'Kids',
-          style: TextStyle(
-            fontSize: 31 * scale,
-            fontWeight: FontWeight.w900,
-            color: const Color(0xFFFF64C2),
-            height: .8,
-          ),
-        ),
-      ],
+    return Image.asset(
+      'assets/images/zenvia_kids_logo.png',
+      width: 220 * scale,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
+      semanticLabel: 'Zenvia Kids',
     );
   }
 }

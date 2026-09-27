@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../data/app_repository.dart';
+import 'play_cave_screen.dart';
 
 /// Экран-перекрёсток после выбора языка.
 enum AdventureDestination { learn, play, smart }
@@ -196,7 +197,13 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
                                   title: 'Хочу\nИграть',
                                   titleColor: Colors.white,
                                   outlineColor: const Color(0xFF0647A8),
-                                  onTap: () => _select(AdventureDestination.play),
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => const PlayCaveScreen(),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ],
                             );
@@ -254,7 +261,7 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
                             final minSignLeft = dragonRight + gap;
                             final signLeft = math.min(
                               math.min(desiredSignLeft, minSignLeft),
-                              maxSignLeft,
+                              math.min(minSignLeft, maxSignLeft),
                             );
 
                             return Stack(

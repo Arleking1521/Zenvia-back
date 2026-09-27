@@ -183,6 +183,25 @@ class _HomeScreenState extends State<HomeScreen> {
                       height * .30,
                     ).clamp(190.0, 270.0).toDouble();
 
+                    // Облачные карточки чуть выше прежних кнопок.
+                    // Рассчитываем размер от доступной высоты, чтобы они
+                    // не наезжали на дракончика на небольших экранах.
+                    final languageCount = math.max(1, languages.length);
+                    const languageGap = 4.0;
+                    final availableForLanguages = math.max(
+                      260.0,
+                      height - dragonSize - 150.0,
+                    );
+                    final languageCardHeight = (
+                      (availableForLanguages -
+                              (languageCount - 1) * languageGap) /
+                          languageCount
+                    ).clamp(68.0, 88.0).toDouble();
+                    final languageCardWidth = math.min(
+                      width - 30.0,
+                      languageCardHeight * 3.45,
+                    ).clamp(238.0, 304.0).toDouble();
+
                     return RefreshIndicator(
                       color: AppColors.primary,
                       onRefresh: () async {
@@ -235,21 +254,27 @@ class _HomeScreenState extends State<HomeScreen> {
                                   // части экрана по высоте.
                                   Align(
                                     alignment: const Alignment(0, -0.10),
-                                    child: languages.isEmpty
-                                        ? const _EmptyLanguages()
-                                        : Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              for (var i = 0; i < languages.length; i++) ...[
-                                                _LanguageChoiceCard(
-                                                  language: languages[i],
-                                                  onTap: () => _selectLanguage(languages[i]),
-                                                ),
-                                                if (i != languages.length - 1)
-                                                  const SizedBox(height: 10),
+                                    child: Transform.translate(
+                                      offset: const Offset(0, -60),
+                                      child: languages.isEmpty
+                                          ? const _EmptyLanguages()
+                                          : Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                for (var i = 0; i < languages.length; i++) ...[
+                                                  _LanguageChoiceCard(
+                                                    language: languages[i],
+                                                    width: languageCardWidth,
+                                                    height: languageCardHeight,
+                                                    floatIndex: i,
+                                                    onTap: () => _selectLanguage(languages[i]),
+                                                  ),
+                                                  if (i != languages.length - 1)
+                                                    const SizedBox(height: languageGap),
+                                                ],
                                               ],
-                                            ],
-                                          ),
+                                            ),
+                                    ),
                                   ),
 
                                   // Дракон текущего уровня. Положение оставляем
@@ -377,60 +402,161 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-class _LanguageChoiceCard extends StatelessWidget {
+class _LanguageChoiceCard extends StatefulWidget {
   final LanguageOption language;
+  final double width;
+  final double height;
+  final int floatIndex;
   final VoidCallback onTap;
 
   const _LanguageChoiceCard({
     required this.language,
+    required this.width,
+    required this.height,
+    required this.floatIndex,
     required this.onTap,
   });
 
   @override
+  State<_LanguageChoiceCard> createState() => _LanguageChoiceCardState();
+}
+
+class _LanguageChoiceCardState extends State<_LanguageChoiceCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _floatController;
+  late final Animation<double> _floatAnimation;
+  bool _pressed = false;
+
+  static const _floatAmplitudes = <double>[4.5, 5.5, 4.0, 5.0];
+  static const _floatPhases = <double>[0.08, 0.42, 0.72, 0.24];
+
+  @override
+  void initState() {
+    super.initState();
+
+    final index = widget.floatIndex % _floatAmplitudes.length;
+    _floatController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 3400 + index * 260),
+      value: _floatPhases[index],
+    )..repeat(reverse: true);
+
+    _floatAnimation = CurvedAnimation(
+      parent: _floatController,
+      curve: Curves.easeInOutSine,
+    );
+  }
+
+  @override
+  void dispose() {
+    _floatController.dispose();
+    super.dispose();
+  }
+
+  void _setPressed(bool value) {
+    if (!mounted || _pressed == value) return;
+    setState(() => _pressed = value);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(30),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            width: 300,
-            constraints: const BoxConstraints(minHeight: 58),
-            padding: const EdgeInsets.fromLTRB(10, 7, 18, 7),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF7EDF7).withValues(alpha: .93),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: .92),
-                width: 1.3,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF315B88).withValues(alpha: .12),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                _LanguageIcon(language: language),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Text(
-                    language.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF32323B),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
+    final disableAnimations = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final amplitude = _floatAmplitudes[
+      widget.floatIndex % _floatAmplitudes.length
+    ];
+
+    return AnimatedBuilder(
+      animation: _floatAnimation,
+      builder: (context, child) {
+        final offsetY = disableAnimations
+            ? 0.0
+            : (_floatAnimation.value * 2 - 1) * amplitude;
+
+        return Transform.translate(
+          offset: Offset(0, offsetY),
+          child: child,
+        );
+      },
+      child: Center(
+        child: Semantics(
+          button: true,
+          label: 'Выбрать язык ${widget.language.title}',
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onTap,
+            onTapDown: (_) => _setPressed(true),
+            onTapCancel: () => _setPressed(false),
+            onTapUp: (_) => _setPressed(false),
+            child: AnimatedScale(
+              scale: _pressed ? .965 : 1,
+              duration: const Duration(milliseconds: 110),
+              curve: Curves.easeOut,
+              child: SizedBox(
+                width: widget.width,
+                height: widget.height,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                  // Прозрачное облако с золотой окантовкой из assets.
+                  // BoxFit.fill позволяет сохранить одинаковую высоту карточек
+                  // на разных экранах без изменения логики страницы.
+                  const Positioned.fill(
+                    child: Image(
+                      image: AssetImage(
+                        'assets/images/language_cloud_card.webp',
+                      ),
+                      fit: BoxFit.fill,
+                      filterQuality: FilterQuality.high,
                     ),
                   ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      // Увеличенный внутренний отступ слева: иконка/флаг и
+                      // название языка дополнительно сдвинуты вправо,
+                      // глубже внутрь светлой части облака.
+                      widget.height * .57,
+                      widget.height * .10,
+                      widget.height * .25,
+                      widget.height * .09,
+                    ),
+                    child: Row(
+                      children: [
+                        _LanguageIcon(
+                          language: widget.language,
+                          size: (widget.height * .58).clamp(40.0, 49.0),
+                        ),
+                        SizedBox(width: widget.height * .13),
+                        Expanded(
+                          child: Text(
+                            widget.language.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: const Color(0xFF40558C),
+                              fontSize: (widget.height * .205).clamp(15.0, 18.0),
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: .1,
+                              shadows: const [
+                                Shadow(
+                                  color: Color(0xCCFFFFFF),
+                                  blurRadius: 3,
+                                  offset: Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: const Color(0xFFD8A91E).withValues(alpha: .78),
+                          size: (widget.height * .31).clamp(21.0, 27.0),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -441,23 +567,30 @@ class _LanguageChoiceCard extends StatelessWidget {
 
 class _LanguageIcon extends StatelessWidget {
   final LanguageOption language;
+  final double size;
 
-  const _LanguageIcon({required this.language});
+  const _LanguageIcon({
+    required this.language,
+    this.size = 44,
+  });
 
   @override
   Widget build(BuildContext context) {
     final url = language.iconUrl;
 
     return Container(
-      width: 44,
-      height: 44,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withValues(alpha: .96),
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
+        border: Border.all(
+          color: const Color(0xFFFFD84D).withValues(alpha: .95),
+          width: 2.2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1D5790).withValues(alpha: .12),
+            color: const Color(0xFFF5B91A).withValues(alpha: .20),
             blurRadius: 7,
           ),
         ],
@@ -467,7 +600,7 @@ class _LanguageIcon extends StatelessWidget {
           ? Center(
               child: Text(
                 language.appLanguage?.flagEmoji ?? '🌐',
-                style: const TextStyle(fontSize: 27),
+                style: TextStyle(fontSize: size * .58),
               ),
             )
           : Image.network(
@@ -476,7 +609,7 @@ class _LanguageIcon extends StatelessWidget {
               errorBuilder: (_, __, ___) => Center(
                 child: Text(
                   language.appLanguage?.flagEmoji ?? '🌐',
-                  style: const TextStyle(fontSize: 27),
+                  style: TextStyle(fontSize: size * .58),
                 ),
               ),
             ),

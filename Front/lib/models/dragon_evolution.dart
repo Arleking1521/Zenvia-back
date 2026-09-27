@@ -16,6 +16,7 @@ class DragonLevel {
 
 class DragonEvolutionData {
   final int totalXp;
+  final String dragonColor;
   final DragonLevel? currentLevel;
   final DragonLevel? nextLevel;
   final int xpToNextLevel;
@@ -23,6 +24,7 @@ class DragonEvolutionData {
 
   const DragonEvolutionData({
     required this.totalXp,
+    this.dragonColor = 'blue',
     required this.currentLevel,
     required this.nextLevel,
     required this.xpToNextLevel,
