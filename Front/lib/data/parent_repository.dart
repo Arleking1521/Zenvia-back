@@ -41,6 +41,7 @@ abstract class ParentRepository {
   Future<List<TariffPlan>> getTariffs();
   Future<KindergartenPromoOffer> validatePromoCode(String code);
   Future<SubscriptionInfo?> getCurrentSubscription();
+  Future<SubscriptionAccessStatus> getSubscriptionAccessStatus();
   Future<SubscriptionInfo> createSubscription(
     int tariffId, {
     String? promoCode,

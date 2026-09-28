@@ -7,6 +7,7 @@ from .xp_services import award_xp, get_daily_xp_status
 from .daily_lesson_services import get_or_create_daily_lesson, mark_daily_word_listened
 from account.models import ChildProfile
 from account.services import get_child_profile
+from account.permissions import HasActiveSubscription
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -70,7 +71,7 @@ class LanguageViewSet(ReadOnlyModelViewSet):
 
 class TopicViewSet(ReadOnlyModelViewSet):
     serializer_class = TopicSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get_queryset(self):
         queryset = (
@@ -135,7 +136,7 @@ class TopicViewSet(ReadOnlyModelViewSet):
         return Response(result)
 
 class ConceptViewSet(ReadOnlyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get_queryset(self):
         queryset = (
@@ -169,7 +170,7 @@ class ConceptViewSet(ReadOnlyModelViewSet):
 
 class WordViewSet(ReadOnlyModelViewSet):
     serializer_class = WordSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get_queryset(self):
         queryset = (
@@ -204,7 +205,7 @@ class WordViewSet(ReadOnlyModelViewSet):
 
 class WordProgressViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
     serializer_class = WordProgressSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get_queryset(self):
         queryset = (
@@ -257,7 +258,7 @@ class WordProgressViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
 
 class LiteraryContentViewSet(ReadOnlyModelViewSet):
     serializer_class = LiteraryContentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get_queryset(self):
         queryset = (
@@ -298,7 +299,7 @@ class LiteraryContentViewSet(ReadOnlyModelViewSet):
 
 class ProfileContentProgressViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
     serializer_class = ProfileContentProgressSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get_queryset(self):
         return (
@@ -390,7 +391,7 @@ class ProfileContentProgressViewSet(ListModelMixin, RetrieveModelMixin, GenericV
 
 class DailyWordLessonViewSet(RetrieveModelMixin, GenericViewSet):
     serializer_class = DailyWordLessonSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get_queryset(self):
         return (
@@ -436,7 +437,7 @@ class DailyWordLessonViewSet(RetrieveModelMixin, GenericViewSet):
 
 
 class GameSessionViewSet(CreateModelMixin, ListModelMixin, RetrieveModelMixin, GenericViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -677,7 +678,7 @@ class GameSessionViewSet(CreateModelMixin, ListModelMixin, RetrieveModelMixin, G
 
 class LevelViewSet(ReadOnlyModelViewSet):
     serializer_class = LevelSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get_queryset(self):
         # Загружаем все связи level -> avatar -> dragon image одним prefetch.
@@ -769,14 +770,14 @@ class LevelViewSet(ReadOnlyModelViewSet):
 
 class AchievementViewSet(ReadOnlyModelViewSet):
     serializer_class = AchievementSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get_queryset(self):
         return Achievement.objects.all()
 
 class ProfileAchievementViewSet(ReadOnlyModelViewSet):
     serializer_class = ProfileAchievementSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get_queryset(self):
         return (

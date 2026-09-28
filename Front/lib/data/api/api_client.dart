@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 
 import 'api_config.dart';
@@ -13,6 +15,12 @@ class ApiClient {
 
   bool _refreshing = false;
   Future<bool>? _refreshFuture;
+
+  final StreamController<String> _subscriptionGateController =
+      StreamController<String>.broadcast();
+
+  Stream<String> get subscriptionGateEvents =>
+      _subscriptionGateController.stream;
 
   ApiClient({
     TokenStorage? storage,
@@ -51,6 +59,11 @@ class ApiClient {
           handler.next(options);
         },
         onError: (error, handler) async {
+          final subscriptionReason = _subscriptionGateReason(error);
+          if (subscriptionReason != null) {
+            _subscriptionGateController.add(subscriptionReason);
+          }
+
           if (error.response?.statusCode != 401 ||
               error.requestOptions.extra['retried'] == true) {
             handler.next(error);
@@ -77,6 +90,16 @@ class ApiClient {
         },
       ),
     );
+  }
+
+  String? _subscriptionGateReason(DioException error) {
+    if (error.response?.statusCode != 403) return null;
+    final data = error.response?.data;
+    if (data is! Map) return null;
+
+    final code = data['code']?.toString();
+    if (code != 'subscription_required') return null;
+    return data['reason']?.toString() ?? 'none';
   }
 
   Future<bool> _refreshToken() async {

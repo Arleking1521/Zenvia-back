@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from .models import ChildProfile, Subscription
@@ -59,6 +60,71 @@ def get_active_subscription(parent):
     )
     return next((item for item in subscriptions if item.is_current), None)
 
+
+
+def get_subscription_access(parent):
+    """Return a compact subscription-access state for child mode.
+
+    Subscription.status is intentionally not mutated here: an active record can
+    naturally become expired when ends_at passes. The access decision always
+    uses is_current, so stale ACTIVE rows never grant learning access.
+    """
+    active = get_active_subscription(parent)
+    if active is not None:
+        return {
+            'active': True,
+            'reason': 'active',
+            'subscription_id': active.id,
+            'status': active.status,
+            'tariff_id': active.tariff_id,
+            'tariff_title': active.tariff.title,
+            'ends_at': active.ends_at,
+        }
+
+    latest = (
+        Subscription.objects
+        .filter(parent=parent)
+        .select_related('tariff')
+        .order_by('-created_at')
+        .first()
+    )
+
+    if latest is None:
+        return {
+            'active': False,
+            'reason': 'none',
+            'subscription_id': None,
+            'status': None,
+            'tariff_id': None,
+            'tariff_title': None,
+            'ends_at': None,
+        }
+
+    now = timezone.now()
+    if latest.status == Subscription.STATUS_PENDING:
+        reason = 'pending'
+    elif latest.status == Subscription.STATUS_CANCELLED:
+        reason = 'cancelled'
+    elif (
+        latest.status == Subscription.STATUS_EXPIRED
+        or (latest.ends_at is not None and latest.ends_at <= now)
+    ):
+        reason = 'expired'
+    elif latest.status == Subscription.STATUS_ACTIVE:
+        # Covers future-dated or otherwise inactive ACTIVE rows.
+        reason = 'inactive'
+    else:
+        reason = 'none'
+
+    return {
+        'active': False,
+        'reason': reason,
+        'subscription_id': latest.id,
+        'status': latest.status,
+        'tariff_id': latest.tariff_id,
+        'tariff_title': latest.tariff.title,
+        'ends_at': latest.ends_at,
+    }
 
 def get_child_profile_access(parent):
     """Server-side source of truth for child-profile creation limits."""

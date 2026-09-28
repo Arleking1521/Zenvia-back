@@ -15,7 +15,7 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet, GenericV
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User, Avatar, ChildProfile, TariffPlan, Subscription
-from .services import get_child_profile_access
+from .services import get_child_profile_access, get_subscription_access
 from .fake_payments import fake_payments_enabled_for
 from .serializers import (
     ParentRegisterSerializer,
@@ -350,6 +350,13 @@ class SubscriptionViewSet(
         return Response(
             SubscriptionSerializer(current, context={'request': request}).data
         )
+
+
+class SubscriptionStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(get_subscription_access(request.user))
 
 
 class DashboardView(APIView):

@@ -275,6 +275,32 @@ class ApiParentRepository implements ParentRepository {
     }
   }
 
+
+  @override
+  Future<SubscriptionAccessStatus> getSubscriptionAccessStatus() async {
+    try {
+      final response = await client.dio.get<Map<String, dynamic>>(
+        ApiConfig.account('subscription-status/'),
+      );
+      final data = response.data ?? const <String, dynamic>{};
+      return SubscriptionAccessStatus(
+        active: data['active'] == true,
+        reason: data['reason']?.toString() ?? 'none',
+        subscriptionId: data['subscription_id'] == null
+            ? null
+            : _int(data['subscription_id']),
+        status: data['status']?.toString(),
+        tariffId: data['tariff_id'] == null ? null : _int(data['tariff_id']),
+        tariffTitle: data['tariff_title']?.toString(),
+        endsAt: DateTime.tryParse(data['ends_at']?.toString() ?? ''),
+      );
+    } on DioException catch (e) {
+      throw ParentApiException(
+        _message(e, 'Не удалось проверить подписку.'),
+      );
+    }
+  }
+
   @override
   Future<SubscriptionInfo> createSubscription(
     int tariffId, {

@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import (
@@ -253,12 +254,24 @@ class TariffPlanSerializer(serializers.ModelSerializer):
         ]
 
 
+def _has_blocking_subscription(parent):
+    """Pending or currently active subscription blocks a second purchase.
+
+    Expired ACTIVE rows must not block renewal just because their status field
+    has not been normalized to EXPIRED yet.
+    """
+    if parent.subscriptions.filter(status=Subscription.STATUS_PENDING).exists():
+        return True
+
+    active_rows = parent.subscriptions.filter(status=Subscription.STATUS_ACTIVE)
+    return any(item.is_current for item in active_rows)
+
+
 def _normalize_promo_code(value):
     return (value or '').strip().upper()
 
 
 def _promo_error(promo, parent=None):
-    from django.utils import timezone
 
     now = timezone.now()
 
@@ -400,9 +413,7 @@ class SubscriptionCreateSerializer(serializers.Serializer):
                 'tariff': 'Этот тариф доступен только по промокоду.'
             })
 
-        if parent.subscriptions.filter(
-            status__in=[Subscription.STATUS_PENDING, Subscription.STATUS_ACTIVE]
-        ).exists():
+        if _has_blocking_subscription(parent):
             raise serializers.ValidationError(
                 'У родителя уже есть активная подписка или подписка, ожидающая оплаты.'
             )
@@ -431,9 +442,7 @@ class SubscriptionCreateSerializer(serializers.Serializer):
                 .get(pk=request.user.pk)
             )
 
-            if parent.subscriptions.filter(
-                status__in=[Subscription.STATUS_PENDING, Subscription.STATUS_ACTIVE]
-            ).exists():
+            if _has_blocking_subscription(parent):
                 raise serializers.ValidationError(
                     'У родителя уже есть активная подписка или подписка, ожидающая оплаты.'
                 )
@@ -491,4 +500,3 @@ class FakePaymentPurchaseSerializer(SubscriptionCreateSerializer):
         ),
         default=SCENARIO_SUCCESS,
     )
-

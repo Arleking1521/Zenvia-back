@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'data/api/api_client.dart';
@@ -10,6 +12,7 @@ import 'data/auth_repository.dart';
 import 'data/game_repository.dart';
 import 'data/parent_repository.dart';
 import 'models/child_profile.dart';
+import 'models/subscription.dart';
 import 'services/background_music_service.dart';
 import 'screens/achievements_screen.dart';
 import 'screens/adventure_choice_screen.dart';
@@ -18,8 +21,10 @@ import 'screens/learned_words_games_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/parent_dashboard_screen.dart';
 import 'screens/parent_login_screen.dart';
+import 'screens/play_cave_screen.dart';
 import 'screens/topics_screen.dart';
 import 'screens/smart_content_screen.dart';
+import 'screens/subscription_blocked_screen.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 import 'widgets/adaptive_app_viewport.dart';
@@ -192,21 +197,81 @@ class ChildRootShell extends StatefulWidget {
   State<ChildRootShell> createState() => _ChildRootShellState();
 }
 
-class _ChildRootShellState extends State<ChildRootShell> {
+class _ChildRootShellState extends State<ChildRootShell> with WidgetsBindingObserver {
   int _index = 0;
   int _homeRevision = 0;
   int _languageRevision = 0;
   bool _allowPop = false;
   bool _exitInProgress = false;
+  bool _checkingSubscription = true;
+  SubscriptionAccessStatus? _subscriptionAccess;
+  StreamSubscription<String>? _subscriptionGateSubscription;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     BackgroundMusicService.instance.startChildMode();
+    _subscriptionGateSubscription = apiClient.subscriptionGateEvents.listen(
+      _handleSubscriptionGateEvent,
+    );
+    _checkSubscriptionAccess(showLoading: true);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkSubscriptionAccess();
+    }
+  }
+
+  void _handleSubscriptionGateEvent(String reason) {
+    if (!mounted) return;
+    setState(() {
+      _checkingSubscription = false;
+      _subscriptionAccess = SubscriptionAccessStatus(
+        active: false,
+        reason: reason,
+      );
+    });
+  }
+
+  Future<void> _checkSubscriptionAccess({bool showLoading = false}) async {
+    if (showLoading && mounted) {
+      setState(() => _checkingSubscription = true);
+    }
+
+    try {
+      final access = await parentRepository.getSubscriptionAccessStatus();
+      if (!mounted) return;
+      setState(() {
+        _subscriptionAccess = access;
+        _checkingSubscription = false;
+        if (access.active) {
+          _homeRevision++;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _subscriptionAccess = SubscriptionAccessStatus.connectionError();
+        _checkingSubscription = false;
+      });
+    }
+  }
+
+  Future<void> _openFreePlay() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const PlayCaveScreen(),
+      ),
+    );
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _subscriptionGateSubscription?.cancel();
     BackgroundMusicService.instance.stopChildMode();
     super.dispose();
   }
@@ -351,6 +416,43 @@ class _ChildRootShellState extends State<ChildRootShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (_checkingSubscription) {
+      return const Scaffold(
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image(
+              image: AssetImage('assets/images/adventure_bg.webp'),
+              fit: BoxFit.cover,
+            ),
+            Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final access = _subscriptionAccess ??
+        const SubscriptionAccessStatus(active: false, reason: 'none');
+
+    if (!access.active) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) _leaveChildMode();
+        },
+        child: SubscriptionBlockedScreen(
+          access: access,
+          onPlay: () {
+            _openFreePlay();
+          },
+          onParent: () => _leaveChildMode(),
+          onRetry: () => _checkSubscriptionAccess(showLoading: false),
+        ),
+      );
+    }
+
     final screens = [
       HomeScreen(
         key: ValueKey('home-$_homeRevision'),

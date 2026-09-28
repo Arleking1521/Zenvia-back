@@ -125,3 +125,32 @@ class FakePaymentResult {
     required this.subscription,
   });
 }
+
+class SubscriptionAccessStatus {
+  final bool active;
+  final String reason;
+  final int? subscriptionId;
+  final String? status;
+  final int? tariffId;
+  final String? tariffTitle;
+  final DateTime? endsAt;
+
+  const SubscriptionAccessStatus({
+    required this.active,
+    required this.reason,
+    this.subscriptionId,
+    this.status,
+    this.tariffId,
+    this.tariffTitle,
+    this.endsAt,
+  });
+
+  bool get isExpired => reason == 'expired';
+  bool get isPending => reason == 'pending';
+
+  factory SubscriptionAccessStatus.connectionError() =>
+      const SubscriptionAccessStatus(
+        active: false,
+        reason: 'connection_error',
+      );
+}
