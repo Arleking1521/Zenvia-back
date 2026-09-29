@@ -23,6 +23,7 @@ from .serializers import (
     ParentSerializer,
     ParentSettingsSerializer,
     ChangePasswordSerializer,
+    DeleteAccountSerializer,
     AvatarSerializer,
     ChildProfileSerializer,
     ChildProfileWriteSerializer,
@@ -90,6 +91,37 @@ class ChangePasswordView(APIView):
         serializer.save()
         return Response(
             {'detail': 'Пароль успешно изменён.'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class DeleteAccountView(APIView):
+    """Безвозвратно удаляет родительский аккаунт и связанные данные.
+
+    User является корнем пользовательских данных. Связанные ChildProfile,
+    Subscription, PromoCodeUsage и LegalAcceptance используют CASCADE;
+    учебные данные ребёнка, в свою очередь, каскадно удаляются вместе с
+    ChildProfile. Общие справочники, тарифы, промокоды, языки, аватары и
+    юридические документы не удаляются.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = DeleteAccountSerializer(
+            data=request.data,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        # Берём строку пользователя под блокировку, чтобы параллельный запрос
+        # не смог изменить связанные данные в момент удаления.
+        with transaction.atomic():
+            user = User.objects.select_for_update().get(pk=request.user.pk)
+            user.delete()
+
+        return Response(
+            {'detail': 'Аккаунт и связанные с ним данные удалены.'},
             status=status.HTTP_200_OK,
         )
 

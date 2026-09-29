@@ -1,3 +1,175 @@
 from django.test import TestCase
+from django.utils import timezone
+from rest_framework.test import APIClient
 
-# Create your tests here.
+from legal_documents.models import LegalAcceptance, LegalDocumentVersion
+from word_learning.models import (
+    Concept,
+    Language,
+    ProfileAchievement,
+    Achievement,
+    Topic,
+    WordProgress,
+)
+
+from .models import (
+    Avatar,
+    ChildProfile,
+    Kindergarten,
+    PromoCode,
+    PromoCodeUsage,
+    Subscription,
+    TariffPlan,
+    User,
+)
+
+
+class AccountDeletionTests(TestCase):
+    def setUp(self):
+        self.password = 'ParentPass123!'
+        self.user = User.objects.create_user(
+            username='parent@example.com',
+            email='parent@example.com',
+            first_name='Parent',
+            password=self.password,
+        )
+        self.language = Language.objects.create(
+            title='Русский',
+            code='ru',
+            icon='icons/archives/ru.zip',
+        )
+        self.avatar = Avatar.objects.create(
+            title='Dragon',
+            image='profile_icons/dragon.png',
+        )
+        self.child = ChildProfile.objects.create(
+            parent=self.user,
+            name='Kid',
+            base_language=self.language,
+            icon=self.avatar,
+            total_xp=25,
+        )
+        self.topic = Topic.objects.create(
+            difficulty='Easy',
+            is_active=True,
+            icon='icons/topics/animals.png',
+        )
+        self.concept = Concept.objects.create(
+            topic=self.topic,
+            image='words/images/cat.png',
+            difficulty='Easy',
+            is_active=True,
+        )
+        self.progress = WordProgress.objects.create(
+            profile=self.child,
+            concept=self.concept,
+            language=self.language,
+            mastery=2,
+        )
+        self.achievement = Achievement.objects.create(
+            title='First',
+            description='First achievement',
+            icon='achievements/icons/first.png',
+            condition_type='words_learned',
+            condition_value=1,
+        )
+        ProfileAchievement.objects.create(
+            profile=self.child,
+            achievement=self.achievement,
+        )
+
+        self.tariff = TariffPlan.objects.create(
+            code='test',
+            title='Test',
+            price='1000.00',
+            duration_days=30,
+            max_children=1,
+            is_active=True,
+            is_public=False,
+        )
+        self.subscription = Subscription.objects.create(
+            parent=self.user,
+            tariff=self.tariff,
+            status=Subscription.STATUS_ACTIVE,
+            starts_at=timezone.now(),
+        )
+        self.kindergarten = Kindergarten.objects.create(name='Test Kindergarten')
+        self.promo = PromoCode.objects.create(
+            code='TESTCODE',
+            kindergarten=self.kindergarten,
+            tariff=self.tariff,
+        )
+        PromoCodeUsage.objects.create(
+            promo_code=self.promo,
+            parent=self.user,
+            subscription=self.subscription,
+        )
+
+        self.legal_document = LegalDocumentVersion.objects.create(
+            document_type=LegalDocumentVersion.TYPE_TERMS,
+            version='test-1',
+            language='ru',
+            title='Test terms',
+            source_file='legal_documents/test.docx',
+            source_sha256='0' * 64,
+            extracted_html='<p>test</p>',
+            extracted_text='test',
+            status=LegalDocumentVersion.STATUS_DRAFT,
+        )
+        LegalAcceptance.objects.create(
+            user=self.user,
+            document=self.legal_document,
+        )
+
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_wrong_password_does_not_delete_account(self):
+        response = self.client.post(
+            '/api/account/delete-account/',
+            {'password': 'wrong-password', 'confirm_deletion': True},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(User.objects.filter(pk=self.user.pk).exists())
+        self.assertTrue(ChildProfile.objects.filter(pk=self.child.pk).exists())
+
+    def test_confirmation_is_required(self):
+        response = self.client.post(
+            '/api/account/delete-account/',
+            {'password': self.password, 'confirm_deletion': False},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(User.objects.filter(pk=self.user.pk).exists())
+
+    def test_delete_account_cascades_personal_data_only(self):
+        user_id = self.user.pk
+        child_id = self.child.pk
+        subscription_id = self.subscription.pk
+        progress_id = self.progress.pk
+
+        response = self.client.post(
+            '/api/account/delete-account/',
+            {'password': self.password, 'confirm_deletion': True},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(pk=user_id).exists())
+        self.assertFalse(ChildProfile.objects.filter(pk=child_id).exists())
+        self.assertFalse(WordProgress.objects.filter(pk=progress_id).exists())
+        self.assertFalse(Subscription.objects.filter(pk=subscription_id).exists())
+        self.assertFalse(PromoCodeUsage.objects.filter(parent_id=user_id).exists())
+        self.assertFalse(LegalAcceptance.objects.filter(user_id=user_id).exists())
+
+        # Общие справочники и утверждаемые документы аккаунту не принадлежат.
+        self.assertTrue(TariffPlan.objects.filter(pk=self.tariff.pk).exists())
+        self.assertTrue(PromoCode.objects.filter(pk=self.promo.pk).exists())
+        self.assertTrue(Language.objects.filter(pk=self.language.pk).exists())
+        self.assertTrue(Avatar.objects.filter(pk=self.avatar.pk).exists())
+        self.assertTrue(
+            LegalDocumentVersion.objects.filter(pk=self.legal_document.pk).exists()
+        )

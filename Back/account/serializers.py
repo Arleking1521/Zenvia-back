@@ -231,6 +231,42 @@ class ChangePasswordSerializer(serializers.Serializer):
         return user
 
 
+class DeleteAccountSerializer(serializers.Serializer):
+    password = serializers.CharField(
+        write_only=True,
+        required=True,
+        allow_blank=False,
+        error_messages={
+            'blank': 'Введите пароль родителя.',
+            'required': 'Введите пароль родителя.',
+        },
+    )
+    confirm_deletion = serializers.BooleanField(
+        write_only=True,
+        required=True,
+        error_messages={
+            'required': 'Необходимо подтвердить удаление аккаунта.',
+        },
+    )
+
+    def validate_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError(
+                'Неверный пароль.',
+                code='invalid_password',
+            )
+        return value
+
+    def validate_confirm_deletion(self, value):
+        if value is not True:
+            raise serializers.ValidationError(
+                'Необходимо подтвердить удаление аккаунта.',
+                code='confirmation_required',
+            )
+        return value
+
+
 class ChildLanguageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Language
