@@ -23,7 +23,22 @@ class User(AbstractUser):
     Авторизация во внешнем API выполняется по email + password. Поле username
     сохранено как техническое, чтобы не ломать существующую AUTH_USER_MODEL и
     старые миграции Django; для новых родителей в username записывается email.
+
+    interface_language относится только к интерфейсу родительского кабинета.
+    Он не связан с ChildProfile.base_language (язык интерфейса ребёнка) и с
+    языками, которые ребёнок изучает.
     """
+
+    INTERFACE_LANGUAGE_RU = 'ru'
+    INTERFACE_LANGUAGE_KK = 'kk'
+    INTERFACE_LANGUAGE_EN = 'en'
+    INTERFACE_LANGUAGE_ZH = 'zh'
+    INTERFACE_LANGUAGE_CHOICES = (
+        (INTERFACE_LANGUAGE_RU, 'Русский'),
+        (INTERFACE_LANGUAGE_KK, 'Қазақша'),
+        (INTERFACE_LANGUAGE_EN, 'English'),
+        (INTERFACE_LANGUAGE_ZH, '中文'),
+    )
 
     username = models.CharField(max_length=128, unique=True, verbose_name=_('Технический логин'))
     password = models.CharField(max_length=128, verbose_name=_('Пароль'))
@@ -34,6 +49,12 @@ class User(AbstractUser):
         blank=True,
         default='',
         verbose_name=_('Хеш родительского PIN'),
+    )
+    interface_language = models.CharField(
+        max_length=5,
+        choices=INTERFACE_LANGUAGE_CHOICES,
+        default=INTERFACE_LANGUAGE_RU,
+        verbose_name=_('Язык интерфейса родителя'),
     )
 
     REQUIRED_FIELDS = ['email', 'first_name']

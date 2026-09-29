@@ -61,6 +61,7 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
             'id',
             'email',
             'first_name',
+            'interface_language',
             'password',
             'password_confirm',
         ]
@@ -90,6 +91,10 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
             username=email,  # техническое поле, внешняя авторизация идёт по email
             email=email,
             first_name=validated_data['first_name'].strip(),
+            interface_language=validated_data.get(
+                'interface_language',
+                User.INTERFACE_LANGUAGE_RU,
+            ),
         )
         user.set_password(password)
         user.save()
@@ -123,6 +128,7 @@ class ParentSerializer(serializers.ModelSerializer):
             'id',
             'email',
             'first_name',
+            'interface_language',
             'children_count',
         ]
 
@@ -130,7 +136,7 @@ class ParentSerializer(serializers.ModelSerializer):
 class ParentSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['first_name']
+        fields = ['first_name', 'interface_language']
 
     def validate_first_name(self, value):
         value = value.strip()

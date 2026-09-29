@@ -16,12 +16,22 @@ from .models import (
 
 @admin.register(User)
 class ParentAdmin(UserAdmin):
-    list_display = ('id', 'email', 'first_name', 'is_active', 'is_staff')
+    list_display = (
+        'id',
+        'email',
+        'first_name',
+        'interface_language',
+        'is_active',
+        'is_staff',
+    )
+    list_filter = UserAdmin.list_filter + ('interface_language',)
     search_fields = ('email', 'first_name')
     ordering = ('id',)
-    fieldsets = UserAdmin.fieldsets
+    fieldsets = UserAdmin.fieldsets + (
+        ('Zenvia Kids', {'fields': ('interface_language',)}),
+    )
     add_fieldsets = UserAdmin.add_fieldsets + (
-        ('Родитель', {'fields': ('email', 'first_name')}),
+        ('Родитель', {'fields': ('email', 'first_name', 'interface_language')}),
     )
 
 
