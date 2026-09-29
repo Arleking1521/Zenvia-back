@@ -6,12 +6,14 @@ class ParentAccount {
   final String email;
   final String firstName;
   final int childrenCount;
+  final String interfaceLanguage;
 
   const ParentAccount({
     required this.id,
     required this.email,
     required this.firstName,
     required this.childrenCount,
+    this.interfaceLanguage = 'ru',
   });
 }
 

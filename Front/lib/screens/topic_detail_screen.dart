@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/app_repository.dart';
 import '../data/game_repository.dart';
 import '../models/game.dart';
+import '../l10n/app_strings.dart';
 import '../models/daily_lesson.dart';
 import '../models/language.dart';
 import '../models/topic.dart';
@@ -136,7 +137,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
     final topicId = int.tryParse(_topic.id);
     if (topicId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Не удалось определить ID темы.')),
+        SnackBar(content: Text(context.tr('noQuestion'))),
       );
       return;
     }
@@ -245,9 +246,9 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                         children: [
                           Row(
                             children: [
-                              const Expanded(
+                              Expanded(
                                 child: Text(
-                                  'Прогресс темы',
+                                  context.tr('topicProgress'),
                                   style: TextStyle(
                                     color: AppColors.deepBlue,
                                     fontSize: 18,
@@ -278,8 +279,8 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                           const SizedBox(height: 9),
                           Text(
                             total == 0
-                                ? 'В этой теме пока нет слов'
-                                : 'Изучено $learned из $total слов',
+                                ? context.tr('noWordsTopic')
+                                : context.tr('learnedWordsCount', {'learned': learned, 'total': total}),
                             style: const TextStyle(
                               color: AppColors.textSecondary,
                               fontWeight: FontWeight.w700,
@@ -295,8 +296,8 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                       onTap: _openDailyLesson,
                     ),
                     const SizedBox(height: 18),
-                    const Text(
-                      'Словарь темы',
+                    Text(
+                      context.tr('topicDictionary'),
                       style: TextStyle(
                         color: AppColors.deepBlue,
                         fontSize: 21,
@@ -306,8 +307,8 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                     const SizedBox(height: 10),
                     _DictionaryCard(topic: _topic, onTap: _openDictionary),
                     const SizedBox(height: 22),
-                    const Text(
-                      'Закрепи знания в играх',
+                    Text(
+                      context.tr('practiceInGames'),
                       style: TextStyle(
                         color: AppColors.deepBlue,
                         fontSize: 21,
@@ -317,8 +318,8 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                     const SizedBox(height: 5),
                     Text(
                       gamesUnlocked
-                          ? 'Игры открыты — закрепляй слова этой темы.'
-                          : 'Сначала изучи новые слова дня, чтобы открыть игры.',
+                          ? context.tr('gamesUnlocked')
+                          : context.tr('learnWordsFirstGames'),
                       style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 13,
@@ -376,12 +377,12 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                     color: const Color(0x550E3B7D),
                     child: Center(
                       child: MagicCard(
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            CircularProgressIndicator(color: AppColors.primary),
-                            SizedBox(width: 14),
-                            Text('Готовим игру…', style: TextStyle(fontWeight: FontWeight.w900)),
+                            const CircularProgressIndicator(color: AppColors.primary),
+                            const SizedBox(width: 14),
+                            Text(context.tr('preparingGame'), style: const TextStyle(fontWeight: FontWeight.w900)),
                           ],
                         ),
                       ),
@@ -431,8 +432,8 @@ class _TopicHero extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Остров темы',
+                Text(
+                  context.tr('topicIsland'),
                   style: TextStyle(
                     color: Colors.white70,
                     fontWeight: FontWeight.w800,
@@ -454,7 +455,7 @@ class _TopicHero extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   topic.description.isEmpty
-                      ? 'Изучай слова и закрепляй их в играх'
+                      ? context.tr('learnAndPractice')
                       : topic.description,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
@@ -544,7 +545,7 @@ class _DailyLessonCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      complete ? 'Новые слова изучены!' : '5 новых слов сегодня',
+                      complete ? context.tr('newWordsLearned') : context.tr('fiveNewWordsToday'),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -554,10 +555,10 @@ class _DailyLessonCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       complete
-                          ? 'Игры темы уже доступны'
+                          ? context.tr('topicGamesAvailable')
                           : loading
-                              ? 'Загружаем набор…'
-                              : 'Изучи $studied из $total, чтобы открыть игры',
+                              ? context.tr('loadingSet')
+                              : context.tr('learnToUnlock', {'studied': studied, 'total': total}),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -633,13 +634,13 @@ class _DictionaryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Словарь',
+                    Text(
+                      context.tr('dictionary'),
                       style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${topic.totalCount} слов · картинки · произношение',
+                      context.tr('wordsPicturesPronunciation', {'count': topic.totalCount}),
                       style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 9),
@@ -722,7 +723,7 @@ class _GameCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      _description(type),
+                      _description(context, type),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
@@ -752,16 +753,16 @@ class _GameCard extends StatelessWidget {
     );
   }
 
-  String _description(GameType type) {
+  String _description(BuildContext context, GameType type) {
     switch (type) {
       case GameType.imageChoice:
-        return 'Прочитай и найди картинку';
+        return context.tr('readFindPicture');
       case GameType.wordChoice:
-        return 'Посмотри и выбери слово';
+        return context.tr('lookChooseWord');
       case GameType.audioChoice:
-        return 'Послушай и выбери';
+        return context.tr('listenChoose');
       case GameType.matching:
-        return 'Соедини пары';
+        return context.tr('matchPairs');
     }
   }
 }

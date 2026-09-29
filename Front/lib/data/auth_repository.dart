@@ -19,6 +19,8 @@ abstract class AuthRepository {
 
   Future<ParentAccount> updateParentName(String firstName);
 
+  Future<ParentAccount> updateParentInterfaceLanguage(String languageCode);
+
   Future<void> changePassword({
     required String oldPassword,
     required String newPassword,

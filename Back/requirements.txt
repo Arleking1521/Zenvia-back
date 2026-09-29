@@ -20,3 +20,5 @@ sqlparse==0.6.0
 typing_extensions==4.16.0
 tzdata==2026.3
 uritemplate==4.2.0
+mammoth>=1.8,<2
+bleach>=6.2,<7

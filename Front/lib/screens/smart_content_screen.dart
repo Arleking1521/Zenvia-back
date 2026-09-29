@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../data/app_repository.dart';
 import '../models/language.dart';
 import '../models/literary_content.dart';
+import '../l10n/app_strings.dart';
 import '../services/audio_settings_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/magic_ui.dart';
@@ -114,8 +115,8 @@ class _SmartContentScreenState extends State<SmartContentScreen> {
                         children: [
                           const Text('💡', style: TextStyle(fontSize: 48)),
                           const SizedBox(height: 10),
-                          const Text(
-                            'Не удалось загрузить умные материалы',
+                          Text(
+                            context.tr('smartLoadFailed'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 18,
@@ -124,7 +125,7 @@ class _SmartContentScreenState extends State<SmartContentScreen> {
                             ),
                           ),
                           const SizedBox(height: 14),
-                          MagicPrimaryButton(label: 'Повторить', onPressed: _refresh),
+                          MagicPrimaryButton(label: context.tr('retry'), onPressed: _refresh),
                         ],
                       ),
                     ),
@@ -147,9 +148,9 @@ class _SmartContentScreenState extends State<SmartContentScreen> {
                       children: [
                         _BackButton(onTap: () => Navigator.of(context).pop()),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Пещера знаний',
+                            context.tr('knowledgeCave'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 25,
@@ -172,8 +173,8 @@ class _SmartContentScreenState extends State<SmartContentScreen> {
                         children: [
                           const Text('💡', style: TextStyle(fontSize: 50)),
                           const SizedBox(height: 5),
-                          const Text(
-                            'Я хочу умничать!',
+                          Text(
+                            context.tr('wantBeSmart'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white,
@@ -198,7 +199,7 @@ class _SmartContentScreenState extends State<SmartContentScreen> {
                       child: Row(
                         children: [
                           _FilterChip(
-                            label: '✨ Всё',
+                            label: context.tr('allFilter'),
                             selected: _filter == null,
                             onTap: () => setState(() => _filter = null),
                           ),
@@ -226,8 +227,8 @@ class _SmartContentScreenState extends State<SmartContentScreen> {
                             const SizedBox(height: 8),
                             Text(
                               allItems.isEmpty
-                                  ? 'Для этого языка пока нет стихов, пословиц, загадок и скороговорок.'
-                                  : 'В этой категории пока ничего нет.',
+                                  ? context.tr('noSmartContent')
+                                  : context.tr('emptyCategory'),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: AppColors.textSecondary,

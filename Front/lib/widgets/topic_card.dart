@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/topic.dart';
+import '../l10n/app_strings.dart';
 import '../theme/app_colors.dart';
 
 class TopicCard extends StatelessWidget {
@@ -59,7 +60,7 @@ class TopicCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(99),
                         ),
                         child: Text(
-                          topic.isCompleted ? 'Завершено' : '${topic.learnedCount}/${topic.totalCount} слов',
+                          topic.isCompleted ? context.tr('completed') : context.tr('wordsCount', {'learned': topic.learnedCount, 'total': topic.totalCount}),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -114,7 +115,7 @@ class TopicCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  topic.description.isNotEmpty ? topic.description : 'Учи новые слова вместе с дракончиком',
+                  topic.description.isNotEmpty ? topic.description : context.tr('learnNewWithDragon'),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -148,7 +149,7 @@ class TopicCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              topic.isCompleted ? 'Отличная работа!' : 'Прогресс обучения',
+                              topic.isCompleted ? context.tr('excellentWork') : context.tr('learningProgress'),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(

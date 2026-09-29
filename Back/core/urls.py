@@ -28,6 +28,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/account/',include('account.urls')),
     path('api/',include('word_learning.urls')),
+    path('api/legal/', include('legal_documents.api_urls')),
+    path('', include('legal_documents.web_urls')),
     path('api/schema/',SpectacularAPIView.as_view(),name='schema'),
     path('api/docs/',SpectacularSwaggerView.as_view(url_name='schema'),name='swagger-ui'),
     path('api/redoc/',SpectacularRedocView.as_view(url_name='schema'),name='redoc'),

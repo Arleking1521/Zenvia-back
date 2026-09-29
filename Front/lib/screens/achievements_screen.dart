@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_repository.dart';
 import '../models/achievement.dart';
+import '../l10n/app_strings.dart';
 import '../theme/app_colors.dart';
 import '../widgets/achievement_card.dart';
 import '../widgets/magic_ui.dart';
@@ -80,7 +81,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                           ),
                           const Spacer(),
                           Text(
-                            'Достижения',
+                            context.tr('achievements'),
                             style: TextStyle(
                               fontSize: 31,
                               height: 1,
@@ -111,14 +112,14 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                           : snapshot.hasError
                               ? Center(
                                   child: MagicPrimaryButton(
-                                    label: 'Повторить',
+                                    label: context.tr('retry'),
                                     onPressed: _reload,
                                   ),
                                 )
                               : items.isEmpty
-                                  ? const Center(
+                                  ? Center(
                                       child: Text(
-                                        'Достижений пока нет',
+                                        context.tr('noAchievements'),
                                         style: TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.w800,
@@ -200,7 +201,7 @@ class _SummaryCloud extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  '$completed из $total достижений',
+                  context.tr('achievementsCount', {'completed': completed, 'total': total}),
                   style: const TextStyle(
                     color: AppColors.deepBlue,
                     fontSize: 20,

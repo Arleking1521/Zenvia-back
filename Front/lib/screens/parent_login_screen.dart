@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/auth_repository.dart';
+import '../l10n/app_strings.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/magic_ui.dart';
@@ -29,7 +30,7 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
 
   Future<void> _submit() async {
     if (_email.text.trim().isEmpty || _password.text.isEmpty) {
-      setState(() => _error = 'Введите email и пароль.');
+      setState(() => _error = context.tr('enterEmailPassword'));
       return;
     }
     setState(() { _loading = true; _error = null; });
@@ -71,21 +72,21 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text('Кабинет родителя', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.deepBlue)),
+                          Text(context.tr('parentLoginTitle'), textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.deepBlue)),
                           const SizedBox(height: 6),
-                          const Text('Управляйте профилями детей, тарифом и безопасностью.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
+                          Text(context.tr('parentLoginSubtitle'), textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
                           const SizedBox(height: 20),
                           AppTextField(controller: _email, label: 'Email', hint: 'parent@example.com', keyboardType: TextInputType.emailAddress),
                           const SizedBox(height: 12),
-                          AppTextField(controller: _password, label: 'Пароль', hint: 'Введите пароль', obscure: true),
+                          AppTextField(controller: _password, label: context.tr('password'), hint: context.tr('enterPassword'), obscure: true),
                           if (_error != null) ...[
                             const SizedBox(height: 10),
                             Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w700)),
                           ],
                           const SizedBox(height: 18),
-                          MagicPrimaryButton(label: _loading ? 'Входим…' : 'Войти', icon: Icons.login_rounded, onPressed: _loading ? null : _submit),
+                          MagicPrimaryButton(label: _loading ? context.tr('loggingIn') : context.tr('login'), icon: Icons.login_rounded, onPressed: _loading ? null : _submit),
                           const SizedBox(height: 8),
-                          TextButton(onPressed: _loading ? null : _register, child: const Text('Создать аккаунт родителя')),
+                          TextButton(onPressed: _loading ? null : _register, child: Text(context.tr('createParentAccount'))),
                         ],
                       ),
                     ),

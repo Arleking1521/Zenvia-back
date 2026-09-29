@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../data/app_repository.dart';
+import '../l10n/app_strings.dart';
 import 'play_cave_screen.dart';
 
 /// Экран-перекрёсток после выбора языка.
@@ -121,7 +122,7 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
                       FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
-                          'Что будешь\nделать сегодня?',
+                          context.tr('whatToday'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,
@@ -156,7 +157,7 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
                           ],
                         ),
                         child: Text(
-                          'Выбери свою пещеру!',
+                          context.tr('chooseCave'),
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w900,
@@ -185,7 +186,7 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
                                 _AdventureCave(
                                   size: caveSize,
                                   asset: 'assets/images/adventure_learn.webp',
-                                  title: 'Хочу\nУчиться',
+                                  title: context.tr('wantLearn'),
                                   titleColor: const Color(0xFFFFF4DB),
                                   outlineColor: const Color(0xFF8E4A05),
                                   floatAmplitude: 5.0,
@@ -197,7 +198,7 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
                                 _AdventureCave(
                                   size: caveSize,
                                   asset: 'assets/images/adventure_play.webp',
-                                  title: 'Хочу\nИграть',
+                                  title: context.tr('wantPlay'),
                                   titleColor: Colors.white,
                                   outlineColor: const Color(0xFF0647A8),
                                   floatAmplitude: 6.0,
@@ -230,7 +231,7 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
                               child: _AdventureCave(
                                 size: smartSize,
                                 asset: 'assets/images/adventure_smart.webp',
-                                title: 'Хочу\nУмничать',
+                                title: context.tr('wantSmart'),
                                 titleColor: Colors.white,
                                 outlineColor: const Color(0xFF6F168E),
                                 floatAmplitude: 4.5,
@@ -316,7 +317,7 @@ class _AdventureChoiceScreenState extends State<AdventureChoiceScreen> {
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              '✨ Учись  •  Играй  •  Развивайся ✨',
+                              context.tr('learnPlayGrow'),
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: Colors.white,

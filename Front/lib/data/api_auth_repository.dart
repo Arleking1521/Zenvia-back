@@ -116,6 +116,21 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<ParentAccount> updateParentInterfaceLanguage(String languageCode) async {
+    try {
+      final response = await client.dio.patch<Map<String, dynamic>>(
+        ApiConfig.account('me/'),
+        data: {'interface_language': languageCode},
+      );
+      return _parent(response.data ?? const {});
+    } on DioException catch (e) {
+      throw AuthException(
+        _messageFromDio(e, fallback: 'Не удалось изменить язык интерфейса.'),
+      );
+    }
+  }
+
+  @override
   Future<void> changePassword({
     required String oldPassword,
     required String newPassword,
@@ -149,6 +164,7 @@ class ApiAuthRepository implements AuthRepository {
       email: row['email']?.toString() ?? '',
       firstName: row['first_name']?.toString() ?? '',
       childrenCount: _asInt(row['children_count']),
+      interfaceLanguage: row['interface_language']?.toString() ?? 'ru',
     );
   }
 

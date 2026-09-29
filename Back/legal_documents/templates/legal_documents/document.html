@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="{{ document.language|default:'ru' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if document %}{{ document.title }}{% else %}{{ fallback_title }}{% endif %} — Zenvia Kids</title>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      margin: 0;
+      background: #f5f8ff;
+      color: #243451;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      line-height: 1.65;
+    }
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 12px 40px rgba(47, 78, 130, .10);
+    }
+    .brand { font-weight: 800; color: #5367d6; margin-bottom: 8px; }
+    h1 { line-height: 1.2; color: #203866; }
+    h2, h3, h4 { color: #294875; margin-top: 1.5em; }
+    .meta { color: #6c7891; font-size: 14px; margin-bottom: 26px; }
+    a { color: #5065d7; }
+    table { width: 100%; border-collapse: collapse; overflow-x: auto; display: block; }
+    th, td { border: 1px solid #dfe6f2; padding: 8px 10px; text-align: left; }
+    .notice {
+      padding: 18px;
+      border-radius: 16px;
+      background: #fff7dc;
+      color: #6f5816;
+    }
+    @media (max-width: 600px) {
+      main { padding: 16px 10px 36px; }
+      .card { border-radius: 18px; padding: 20px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <div class="brand">Zenvia Kids</div>
+      {% if document %}
+        <h1>{{ document.title }}</h1>
+        <div class="meta">
+          Версия {{ document.version }}
+          {% if document.effective_from %} · действует с {{ document.effective_from|date:"d.m.Y" }}{% endif %}
+          {% if is_admin_preview %} · предпросмотр черновика{% endif %}
+        </div>
+        <article>{{ document.extracted_html|safe }}</article>
+      {% else %}
+        <h1>{{ fallback_title }}</h1>
+        <div class="notice">Документ пока не опубликован.</div>
+      {% endif %}
+    </div>
+  </main>
+</body>
+</html>

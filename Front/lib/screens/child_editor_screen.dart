@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/parent_repository.dart';
+import '../l10n/app_strings.dart';
 import '../models/child_profile.dart';
 import '../models/registration_option.dart';
 import '../theme/app_colors.dart';
@@ -56,7 +57,7 @@ class _ChildEditorScreenState extends State<ChildEditorScreen> {
 
   Future<void> _save() async {
     if (_name.text.trim().length < 2 || _languageId == null || _avatarId == null) {
-      setState(() => _error = 'Заполните имя, язык и выберите аватар.');
+      setState(() => _error = context.tr('fillChildForm'));
       return;
     }
     setState(() {
@@ -88,7 +89,7 @@ class _ChildEditorScreenState extends State<ChildEditorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: Text(_editing ? 'Профиль ребёнка' : 'Новый профиль ребёнка')),
+      appBar: AppBar(title: Text(_editing ? context.tr('childProfile') : context.tr('newChildProfile'))),
       body: FutureBuilder<void>(
         future: _loadFuture,
         builder: (context, snapshot) {
@@ -101,9 +102,9 @@ class _ChildEditorScreenState extends State<ChildEditorScreen> {
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              AppTextField(controller: _name, label: 'Имя ребёнка', hint: 'Карим'),
+              AppTextField(controller: _name, label: context.tr('childName'), hint: 'Карим'),
               const SizedBox(height: 20),
-              const Text('Базовый язык интерфейса', style: TextStyle(fontWeight: FontWeight.w700)),
+              Text(context.tr('baseInterfaceLanguage'), style: TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
@@ -118,7 +119,7 @@ class _ChildEditorScreenState extends State<ChildEditorScreen> {
                 }).toList(),
               ),
               const SizedBox(height: 20),
-              const Text('Аватар', style: TextStyle(fontWeight: FontWeight.w700)),
+              Text(context.tr('avatar'), style: TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
               GridView.builder(
                 shrinkWrap: true,
@@ -156,7 +157,7 @@ class _ChildEditorScreenState extends State<ChildEditorScreen> {
                 },
               ),
               if (_avatars.isEmpty)
-                const Text('Добавьте аватары в Django Admin.', style: TextStyle(color: Colors.red)),
+                Text(context.tr('noAvatarsAdmin'), style: TextStyle(color: Colors.red)),
               if (_error != null) ...[
                 const SizedBox(height: 12),
                 Text(_error!, style: const TextStyle(color: Colors.red)),
@@ -166,7 +167,7 @@ class _ChildEditorScreenState extends State<ChildEditorScreen> {
                 onPressed: _saving || _avatars.isEmpty || _languages.isEmpty ? null : _save,
                 child: _saving
                     ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text(_editing ? 'Сохранить' : 'Создать профиль'),
+                    : Text(_editing ? context.tr('save') : context.tr('createProfileAction')),
               ),
             ],
           );

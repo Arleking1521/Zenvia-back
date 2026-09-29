@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'account',
     'word_learning',
+    'legal_documents',
 ]
 
 MIDDLEWARE = [
@@ -137,10 +138,10 @@ USE_TZ = True
 
 FORCE_SCRIPT_NAME = "/zenvia"
 STATIC_URL = '/zenvia/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-# STATICFILES_DIRS = [
-#     os.path.join(BASE_DIR, 'static')
-# ]
+# STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static')
+]
 
 MEDIA_URL = '/zenvia/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

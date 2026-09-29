@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/parent_repository.dart';
+import '../l10n/app_strings.dart';
 
 Future<bool> showParentPinVerifyDialog({
   required BuildContext context,
   required ParentRepository repository,
-  String title = 'Родительский PIN',
-  String message = 'Введите PIN, чтобы выйти из режима обучения.',
+  String? title,
+  String? message,
 }) async {
   final navigator = Navigator.of(context, rootNavigator: true);
 
@@ -16,8 +17,8 @@ Future<bool> showParentPinVerifyDialog({
     barrierDismissible: false,
     builder: (_) => _ParentPinVerifyDialog(
       repository: repository,
-      title: title,
-      message: message,
+      title: title ?? context.tr('parentPin'),
+      message: message ?? context.tr('enterPinToExit'),
     ),
   );
 
@@ -86,7 +87,7 @@ class _ParentPinVerifyDialogState extends State<_ParentPinVerifyDialog> {
     final pin = _pinController.text.trim();
     if (pin.length != 4) {
       setState(() {
-        _error = 'Введите 4 цифры PIN-кода.';
+        _error = context.tr('pin4Digits');
       });
       return;
     }
@@ -107,7 +108,7 @@ class _ParentPinVerifyDialogState extends State<_ParentPinVerifyDialog> {
 
       setState(() {
         _loading = false;
-        _error = 'Неверный PIN-код.';
+        _error = context.tr('wrongPin');
         _pinController.clear();
       });
     } catch (e) {
@@ -161,7 +162,7 @@ class _ParentPinVerifyDialogState extends State<_ParentPinVerifyDialog> {
       actions: [
         TextButton(
           onPressed: _loading ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Отмена'),
+          child: Text(context.tr('cancel')),
         ),
         FilledButton(
           onPressed: _loading ? null : _submit,
@@ -171,7 +172,7 @@ class _ParentPinVerifyDialogState extends State<_ParentPinVerifyDialog> {
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Подтвердить'),
+              : Text(context.tr('confirm')),
         ),
       ],
     );
@@ -215,17 +216,17 @@ class _ParentPinSetupDialogState extends State<_ParentPinSetupDialog> {
     final confirm = _confirmController.text.trim();
 
     if (password.isEmpty) {
-      setState(() => _error = 'Введите пароль родителя.');
+      setState(() => _error = context.tr('enterParentPassword'));
       return;
     }
 
     if (pin.length != 4) {
-      setState(() => _error = 'PIN должен состоять из 4 цифр.');
+      setState(() => _error = context.tr('pinMust4'));
       return;
     }
 
     if (pin != confirm) {
-      setState(() => _error = 'PIN-коды не совпадают.');
+      setState(() => _error = context.tr('pinMismatch'));
       return;
     }
 
@@ -257,30 +258,28 @@ class _ParentPinSetupDialogState extends State<_ParentPinSetupDialog> {
     return AlertDialog(
       title: Text(
         widget.changing
-            ? 'Сменить родительский PIN'
-            : 'Создать родительский PIN',
+            ? context.tr('changeParentPin')
+            : context.tr('createParentPin'),
       ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Этот PIN понадобится для выхода из детского режима в личный кабинет родителя.',
-            ),
+            Text(context.tr('pinNeededHint')),
             const SizedBox(height: 14),
             TextField(
               controller: _passwordController,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Пароль родителя',
+              decoration: InputDecoration(
+                labelText: context.tr('parentPassword'),
               ),
             ),
             const SizedBox(height: 10),
-            _PinField(controller: _pinController, label: 'Новый PIN'),
+            _PinField(controller: _pinController, label: context.tr('newPin')),
             const SizedBox(height: 10),
             _PinField(
               controller: _confirmController,
-              label: 'Повторите PIN',
+              label: context.tr('repeatPin'),
             ),
             if (_error != null) ...[
               const SizedBox(height: 8),
@@ -295,7 +294,7 @@ class _ParentPinSetupDialogState extends State<_ParentPinSetupDialog> {
       actions: [
         TextButton(
           onPressed: _loading ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Отмена'),
+          child: Text(context.tr('cancel')),
         ),
         FilledButton(
           onPressed: _loading ? null : _submit,
@@ -305,7 +304,7 @@ class _ParentPinSetupDialogState extends State<_ParentPinSetupDialog> {
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Сохранить'),
+              : Text(context.tr('save')),
         ),
       ],
     );

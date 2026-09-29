@@ -5,6 +5,7 @@ import '../data/game_repository.dart';
 import '../models/game.dart';
 import '../models/language.dart';
 import '../models/topic.dart';
+import '../l10n/app_strings.dart';
 import '../services/background_music_service.dart';
 import '../theme/app_colors.dart';
 import '../services/daily_lesson_service.dart';
@@ -77,7 +78,7 @@ class _GamesScreenState extends State<GamesScreen> {
 
     if (data.topics.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Нет доступных тем для игры.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('noGameTopics'))));
       }
       return;
     }
@@ -106,9 +107,9 @@ class _GamesScreenState extends State<GamesScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('Выбери остров', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.deepBlue)),
+              Text(context.tr('chooseIsland'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.deepBlue)),
               const SizedBox(height: 4),
-              const Text('На какой теме будем тренироваться?', style: TextStyle(color: AppColors.textSecondary)),
+              Text(context.tr('whichTopicPractice'), style: const TextStyle(color: AppColors.textSecondary)),
               const SizedBox(height: 14),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 430),
@@ -133,7 +134,7 @@ class _GamesScreenState extends State<GamesScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(item.title, style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.deepBlue)),
-                                  Text('${item.totalCount} слов', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                                  Text(context.tr('wordsSimpleCount', {'count': item.totalCount}), style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                                 ],
                               ),
                             ),
@@ -178,7 +179,7 @@ class _GamesScreenState extends State<GamesScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Сначала изучи новые слова: ${plan.studiedCount}/${plan.requiredCount}.',
+                context.tr('studyNewWords', {'studied': plan.studiedCount, 'required': plan.requiredCount}),
               ),
             ),
           );
@@ -223,7 +224,7 @@ class _GamesScreenState extends State<GamesScreen> {
               return const Center(child: CircularProgressIndicator(color: AppColors.primary));
             }
             if (snapshot.hasError) {
-              return Center(child: MagicPrimaryButton(label: 'Повторить', onPressed: () => setState(() { _future = _load(); })));
+              return Center(child: MagicPrimaryButton(label: context.tr('retry'), onPressed: () => setState(() { _future = _load(); })));
             }
             final data = snapshot.data!;
             return Stack(
@@ -259,10 +260,10 @@ class _GamesScreenState extends State<GamesScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Игровая поляна 🎮', style: TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.w900)),
+                                  Text(context.tr('gameMeadow'), style: const TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.w900)),
                                   const SizedBox(height: 6),
                                   Text(
-                                    '${data.language.flagEmoji} ${data.language.label} · тренируйся и зарабатывай XP',
+                                    context.tr('languagePracticeXp', {'language': '${data.language.flagEmoji} ${data.language.label}'}),
                                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, height: 1.3),
                                   ),
                                 ],
@@ -273,7 +274,7 @@ class _GamesScreenState extends State<GamesScreen> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    const MagicSectionTitle(title: 'Выбери игру'),
+                    MagicSectionTitle(title: context.tr('chooseGame')),
                     const SizedBox(height: 10),
                     GridView.builder(
                       shrinkWrap: true,
@@ -312,7 +313,7 @@ class _GamesScreenState extends State<GamesScreen> {
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
-                                    type.title,
+                                    _gameTitle(context, type),
                                     textAlign: TextAlign.center,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
@@ -327,7 +328,7 @@ class _GamesScreenState extends State<GamesScreen> {
                                   Expanded(
                                     child: Center(
                                       child: Text(
-                                        _description(type),
+                                        _description(context, type),
                                         textAlign: TextAlign.center,
                                         maxLines: 3,
                                         overflow: TextOverflow.ellipsis,
@@ -354,12 +355,12 @@ class _GamesScreenState extends State<GamesScreen> {
                       color: const Color(0x550E3B7D),
                       child: Center(
                         child: MagicCard(
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              CircularProgressIndicator(color: AppColors.primary),
-                              SizedBox(width: 14),
-                              Text('Готовим игру…', style: TextStyle(fontWeight: FontWeight.w800)),
+                              const CircularProgressIndicator(color: AppColors.primary),
+                              const SizedBox(width: 14),
+                              Text(context.tr('preparingGameEllipsis'), style: const TextStyle(fontWeight: FontWeight.w800)),
                             ],
                           ),
                         ),
@@ -374,16 +375,29 @@ class _GamesScreenState extends State<GamesScreen> {
     );
   }
 
-  String _description(GameType type) {
+  String _gameTitle(BuildContext context, GameType type) {
     switch (type) {
       case GameType.imageChoice:
-        return 'Прочитай слово и найди картинку';
+        return context.tr('gameFindPicture');
       case GameType.wordChoice:
-        return 'Посмотри на картинку и выбери слово';
+        return context.tr('gameChooseWord');
       case GameType.audioChoice:
-        return 'Послушай слово и найди картинку';
+        return context.tr('gameListen');
       case GameType.matching:
-        return 'Соедини картинки и слова';
+        return context.tr('gameFindPair');
+    }
+  }
+
+  String _description(BuildContext context, GameType type) {
+    switch (type) {
+      case GameType.imageChoice:
+        return context.tr('readWordFindPicture');
+      case GameType.wordChoice:
+        return context.tr('lookPictureChooseWord');
+      case GameType.audioChoice:
+        return context.tr('listenWordFindPicture');
+      case GameType.matching:
+        return context.tr('connectPicturesWords');
     }
   }
 }

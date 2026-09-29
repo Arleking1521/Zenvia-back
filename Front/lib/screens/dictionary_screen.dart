@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../models/language.dart';
+import '../l10n/app_strings.dart';
 import '../models/topic.dart';
 import '../services/audio_settings_service.dart';
 import '../services/background_music_service.dart';
@@ -83,7 +84,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
       ),
     );
     final raw = response.data;
-    if (raw == null || raw.isEmpty) throw StateError('Сервер вернул пустой аудиофайл');
+    if (raw == null || raw.isEmpty) throw StateError('Empty audio');
     final bytes = Uint8List.fromList(raw);
     _audioCache[url] = bytes;
     return bytes;
@@ -134,7 +135,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
       });
       final status = e.response?.statusCode;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(status == null ? 'Не удалось скачать аудио с сервера' : 'Сервер не отдал аудио (HTTP $status)')),
+        SnackBar(content: Text(context.tr('audioPlayFailed'))),
       );
     } catch (e) {
       if (!mounted) return;
@@ -143,7 +144,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
         _isPlayingAudio = false;
         _currentAudioUrl = null;
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось воспроизвести аудио: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('audioPlayFailed'))));
     }
   }
 
@@ -166,7 +167,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
         body: FantasyBackground(
           child: SafeArea(
             child: Center(
-              child: MagicCard(child: Text('В теме «${topic.title}» пока нет слов')),
+              child: MagicCard(child: Text(context.tr('topicNoWordsNamed', {'topic': topic.title}))),
             ),
           ),
         ),
@@ -208,7 +209,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Шаг ${_wordIndex + 1} из ${topic.words.length}',
+                            context.tr('lessonStep', {'current': _wordIndex + 1, 'total': topic.words.length}),
                             style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700),
                           ),
                         ],
@@ -231,9 +232,9 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                     children: [
                       Row(
                         children: [
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'Учимся вместе с дракончиком',
+                              context.tr('learnWithDragon'),
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w900,
@@ -248,7 +249,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                               borderRadius: BorderRadius.circular(99),
                             ),
                             child: Text(
-                              remaining == 0 ? 'Последнее слово' : 'Осталось $remaining',
+                              remaining == 0 ? context.tr('lastWord') : context.tr('remaining', {'count': remaining}),
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 11),
                             ),
                           ),
@@ -295,7 +296,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Слушай, смотри и запоминай',
+                                      context.tr('listenLookRemember'),
                                       style: const TextStyle(
                                         color: AppColors.deepBlue,
                                         fontWeight: FontWeight.w900,
@@ -304,7 +305,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                                     ),
                                     const SizedBox(height: 3),
                                     Text(
-                                      hasAudio ? 'Нажми на кнопку и повтори слово вслух' : 'Аудио пока не добавлено',
+                                      hasAudio ? context.tr('tapRepeatAloud') : context.tr('audioNotAddedShort'),
                                       style: const TextStyle(
                                         color: AppColors.textSecondary,
                                         fontSize: 12,
@@ -366,7 +367,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                                     borderRadius: BorderRadius.circular(99),
                                   ),
                                   child: Text(
-                                    _wordIndex == topic.words.length - 1 ? 'Отлично! Почти готово ⭐' : 'Запомни это слово и двигайся дальше',
+                                    _wordIndex == topic.words.length - 1 ? context.tr('almostDoneStar') : context.tr('rememberAndMove'),
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
                                       color: AppColors.deepBlue,
@@ -389,7 +390,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                     if (_wordIndex > 0) ...[
                       Expanded(
                         child: _ghostButton(
-                          label: 'Назад',
+                          label: context.tr('back'),
                           icon: Icons.arrow_back_rounded,
                           onPressed: () => _changeWord(_wordIndex - 1),
                         ),
@@ -399,7 +400,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                     Expanded(
                       flex: 2,
                       child: MagicPrimaryButton(
-                        label: _wordIndex < topic.words.length - 1 ? 'Следующее слово' : 'Завершить',
+                        label: _wordIndex < topic.words.length - 1 ? context.tr('nextWord') : context.tr('finish'),
                         icon: _wordIndex < topic.words.length - 1 ? Icons.arrow_forward_rounded : Icons.star_rounded,
                         onPressed: () async {
                           if (_wordIndex < topic.words.length - 1) {

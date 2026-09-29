@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+
 import 'catch_stars_game_screen.dart';
 import 'firefly_sequence_game_screen.dart';
 import 'memory_match_game_screen.dart';
@@ -46,7 +48,7 @@ class PlayCaveScreen extends StatelessWidget {
                         color: Colors.white.withValues(alpha: .24),
                         shape: const CircleBorder(),
                         child: IconButton(
-                          tooltip: 'Назад',
+                          tooltip: context.tr('back'),
                           onPressed: () => Navigator.of(context).pop(),
                           icon: const Icon(
                             Icons.arrow_back_rounded,
@@ -63,8 +65,8 @@ class PlayCaveScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Хочу играть',
+                Text(
+                  context.tr('playCaveTitle'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white,
@@ -80,10 +82,10 @@ class PlayCaveScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Text(
-                    'Выбирай игру и просто веселись!',
+                    context.tr('chooseGameFun'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,
@@ -102,9 +104,8 @@ class PlayCaveScreen extends StatelessWidget {
                         child: Column(
                           children: [
                             _GameTile(
-                              title: 'Найди пару',
-                              subtitle:
-                                  'Переворачивай карточки и находи одинаковые картинки',
+                              title: context.tr('findPair'),
+                              subtitle: context.tr('findPairHint'),
                               preview: const _MiniMemoryPreview(),
                               buttonColor: const Color(0xFF2F9BFF),
                               onTap: () {
@@ -118,9 +119,8 @@ class PlayCaveScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 18),
                             _GameTile(
-                              title: 'Повтори за светлячками',
-                              subtitle:
-                                  'Запоминай, кто загорелся, и повторяй последовательность',
+                              title: context.tr('repeatFireflies'),
+                              subtitle: context.tr('repeatFirefliesHint'),
                               preview: const _MiniFireflyPreview(
                                 assetPath: _fireflyAsset,
                               ),
@@ -136,9 +136,8 @@ class PlayCaveScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 18),
                             _GameTile(
-                              title: 'Лови звёздочки',
-                              subtitle:
-                                  'Лови падающие звёздочки и не трогай облачка и яйца',
+                              title: context.tr('catchStars'),
+                              subtitle: context.tr('catchStarsHint'),
                               preview: const _MiniCatchStarsPreview(
                                 starAsset: _starAsset,
                                 cloudAsset: _cloudAsset,
@@ -259,8 +258,8 @@ class _GameTileState extends State<_GameTile> {
                   color: widget.buttonColor,
                   borderRadius: BorderRadius.circular(22),
                 ),
-                child: const Text(
-                  'Играть',
+                child: Text(
+                  context.tr('play'),
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 17,

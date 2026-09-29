@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/game.dart';
+import '../l10n/app_strings.dart';
 import '../services/background_music_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/magic_ui.dart';
@@ -61,7 +62,7 @@ class GameResultScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         Text(
-                          'Отличная работа!',
+                          context.tr('greatWork'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: AppColors.deepBlue,
@@ -83,7 +84,7 @@ class GameResultScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Твой дракон становится сильнее!',
+                          context.tr('dragonStronger'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: AppColors.deepBlue.withValues(alpha: .96),
@@ -138,12 +139,12 @@ class GameResultScreen extends StatelessWidget {
                                   _ResultMetric(
                                     icon: '✅',
                                     value: '${session.correctCount}',
-                                    label: 'Правильно',
+                                    label: context.tr('correct'),
                                   ),
                                   _ResultMetric(
                                     icon: '🎯',
                                     value: '$accuracy%',
-                                    label: 'Точность',
+                                    label: context.tr('accuracy'),
                                   ),
                                   _ResultMetric(
                                     icon: '⭐',
@@ -161,8 +162,8 @@ class GameResultScreen extends StatelessWidget {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text(
-                                    'Всего XP',
+                                  Text(
+                                    context.tr('totalXp'),
                                     style: TextStyle(
                                       color: AppColors.textSecondary,
                                       fontWeight: FontWeight.w700,
@@ -184,8 +185,8 @@ class GameResultScreen extends StatelessWidget {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Text(
-                                      'XP сегодня',
+                                    Text(
+                                      context.tr('xpToday'),
                                       style: TextStyle(
                                         color: AppColors.textSecondary,
                                         fontWeight: FontWeight.w700,
@@ -230,8 +231,8 @@ class GameResultScreen extends StatelessWidget {
                                     ),
                                     child: Text(
                                       result.dailyLimitReached
-                                          ? 'Дневная цель XP выполнена. Можно продолжать играть без прокачки.'
-                                          : 'Дневной лимит уменьшил награду: +${result.xpRequested} → +${result.xpGranted} XP',
+                                          ? context.tr('dailyXpDone')
+                                          : context.tr('xpRewardReduced', {'requested': result.xpRequested, 'granted': result.xpGranted}),
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         color: Color(0xFF8C5A00),
@@ -243,8 +244,8 @@ class GameResultScreen extends StatelessWidget {
                                   ),
                                 ] else if (result.dailyLimitReached) ...[
                                   const SizedBox(height: 10),
-                                  const Text(
-                                    '🌟 Дневная цель XP выполнена!',
+                                  Text(
+                                    context.tr('dailyGoalDoneStar'),
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       color: Color(0xFF8C5A00),
@@ -261,7 +262,7 @@ class GameResultScreen extends StatelessWidget {
                         SizedBox(
                           width: double.infinity,
                           child: MagicPrimaryButton(
-                            label: 'На главную',
+                            label: context.tr('home'),
                             icon: Icons.home_rounded,
                             onPressed: () => Navigator.of(context).pop(true),
                           ),

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_repository.dart';
 import '../models/daily_lesson.dart';
+import '../l10n/app_strings.dart';
 import '../models/language.dart';
 import '../models/topic.dart';
 import '../services/audio_settings_service.dart';
@@ -102,7 +103,7 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
       if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Не удалось загрузить урок: $e')),
+        SnackBar(content: Text(context.tr('lessonLoadFailed', {'error': e}))),
       );
     }
   }
@@ -120,7 +121,7 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
     );
     final data = response.data;
     if (data == null || data.isEmpty) {
-      throw StateError('Пустой аудиофайл');
+      throw StateError('Empty audio');
     }
     final bytes = Uint8List.fromList(data);
     _audioCache[url] = bytes;
@@ -136,8 +137,8 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
     if (audioUrl == null || audioUrl.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Для этого слова аудио пока не добавлено.'),
+        SnackBar(
+          content: Text(context.tr('audioNotAdded')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -189,7 +190,7 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
         _currentAudioUrl = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Не удалось воспроизвести аудио.')),
+        SnackBar(content: Text(context.tr('audioPlayFailed'))),
       );
     }
   }
@@ -204,8 +205,8 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
     final current = plan.words[_index];
     if (!plan.isWordStudied(current)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Сначала нажми на картинку и послушай слово.'),
+        SnackBar(
+          content: Text(context.tr('listenFirst')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -247,7 +248,7 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
         body: Center(
           child: ElevatedButton(
             onPressed: _load,
-            child: const Text('Повторить'),
+            child: Text(context.tr('retry')),
           ),
         ),
       );
@@ -273,15 +274,15 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
                     children: [
                       const Text('🌟', style: TextStyle(fontSize: 52)),
                       const SizedBox(height: 10),
-                      const Text(
-                        'Все новые слова этой темы уже открыты!',
+                      Text(
+                        context.tr('allWordsOpened'),
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
                       ),
                       const SizedBox(height: 16),
                       FilledButton(
                         onPressed: () => Navigator.of(context).pop(true),
-                        child: const Text('Перейти к теме'),
+                        child: Text(context.tr('goToTopic')),
                       ),
                     ],
                   ),
@@ -392,7 +393,7 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
                           ],
                         ),
                         child: Text(
-                          studied ? '⭐ Отлично! Повтори слово вслух' : '🔊 Нажми на картинку и послушай',
+                          studied ? context.tr('repeatWordGreat') : context.tr('tapListen'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: const Color(0xFF173B75),
@@ -487,7 +488,7 @@ class _LessonHeader extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        '5 новых слов · $topicTitle',
+                        context.tr('fiveWordsTopic', {'topic': topicTitle}),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -777,7 +778,7 @@ class _NextButton extends StatelessWidget {
                   ),
                   SizedBox(width: 10 * uiScale),
                   Text(
-                    isLast ? 'Завершить урок' : 'Дальше',
+                    isLast ? context.tr('finishLesson') : context.tr('next'),
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,

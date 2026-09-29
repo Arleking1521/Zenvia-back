@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_repository.dart';
 import '../models/language.dart';
+import '../l10n/app_strings.dart';
 import '../theme/app_colors.dart';
 import '../widgets/magic_ui.dart';
 import 'dragon_evolution_screen.dart';
@@ -87,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Язык «${option.title}» пока не поддерживается этой версией приложения.',
+            context.tr('languageUnsupported', {'language': option.title}),
           ),
         ),
       );
@@ -114,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() => _selectedLanguage = previousLanguage);
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Не удалось изменить язык. Попробуйте ещё раз.')),
+        SnackBar(content: Text(context.tr('languageChangeFailed'))),
       );
     }
   }
@@ -228,12 +229,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                       onAchievements: widget.onOpenAchievements,
                                     ),
                                   ),
-                                  const Positioned(
+                                  Positioned(
                                     top: 58,
                                     left: 0,
                                     right: 0,
                                     child: Text(
-                                      'Выбери язык',
+                                      context.tr('chooseLanguage'),
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         color: Colors.white,
@@ -480,7 +481,7 @@ class _LanguageChoiceCardState extends State<_LanguageChoiceCard>
       child: Center(
         child: Semantics(
           button: true,
-          label: 'Выбрать язык ${widget.language.title}',
+          label: context.tr('chooseLanguageA11y', {'language': widget.language.title}),
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: widget.onTap,
@@ -630,8 +631,8 @@ class _EmptyLanguages extends StatelessWidget {
           color: Colors.white.withValues(alpha: .90),
           borderRadius: BorderRadius.circular(26),
         ),
-        child: const Text(
-          'В базе пока нет доступных языков.',
+        child: Text(
+          context.tr('noLanguages'),
           textAlign: TextAlign.center,
           style: TextStyle(
             color: AppColors.deepBlue,
@@ -672,8 +673,8 @@ class _ApiErrorState extends StatelessWidget {
                   children: [
                     const Text('☁️', style: TextStyle(fontSize: 46)),
                     const SizedBox(height: 10),
-                    const Text(
-                      'Не удалось загрузить языки',
+                    Text(
+                      context.tr('loadLanguagesFailed'),
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 18,
@@ -683,7 +684,7 @@ class _ApiErrorState extends StatelessWidget {
                     Text(message, textAlign: TextAlign.center),
                     const SizedBox(height: 16),
                     MagicPrimaryButton(
-                      label: 'Повторить',
+                      label: context.tr('retry'),
                       onPressed: onRetry,
                     ),
                   ],

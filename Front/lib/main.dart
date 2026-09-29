@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/api/api_client.dart';
 import 'data/api_app_repository.dart';
@@ -14,6 +15,7 @@ import 'data/parent_repository.dart';
 import 'models/child_profile.dart';
 import 'models/subscription.dart';
 import 'services/background_music_service.dart';
+import 'services/app_locale_controller.dart';
 import 'screens/achievements_screen.dart';
 import 'screens/adventure_choice_screen.dart';
 import 'screens/child_settings_screen.dart';
@@ -31,7 +33,11 @@ import 'widgets/adaptive_app_viewport.dart';
 import 'widgets/parent_pin_dialog.dart';
 import 'widgets/magic_ui.dart';
 
-void main() => runApp(const KidsLangApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  appLocaleController.useDeviceLocale();
+  runApp(const KidsLangApp());
+}
 
 final ApiClient apiClient = ApiClient();
 final AuthRepository authRepository = ApiAuthRepository(apiClient);
@@ -44,14 +50,29 @@ class KidsLangApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Zenvia Kids',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      builder: (context, child) => AdaptiveAppViewport(
-        child: child ?? const SizedBox.shrink(),
+    return AnimatedBuilder(
+      animation: appLocaleController,
+      builder: (context, _) => MaterialApp(
+        title: 'Zenvia Kids',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        locale: appLocaleController.locale,
+        supportedLocales: const [
+          Locale('ru'),
+          Locale('kk'),
+          Locale('en'),
+          Locale('zh'),
+        ],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        builder: (context, child) => AdaptiveAppViewport(
+          child: child ?? const SizedBox.shrink(),
+        ),
+        home: const _AuthGate(),
       ),
-      home: const _AuthGate(),
     );
   }
 }
@@ -82,6 +103,15 @@ class _AuthGateState extends State<_AuthGate> {
     _sessionFuture = _loadStartupSession();
   }
 
+  Future<void> _applyParentLocale() async {
+    try {
+      final parent = await authRepository.getParent();
+      appLocaleController.setCode(parent.interfaceLanguage);
+    } catch (_) {
+      // Если профиль временно недоступен, оставляем текущий locale.
+    }
+  }
+
   Future<_StartupSession> _loadStartupSession() async {
     final loggedIn = await authRepository.isLoggedIn();
     if (!loggedIn) {
@@ -90,6 +120,7 @@ class _AuthGateState extends State<_AuthGate> {
 
     final selectedChildId = await parentRepository.getSelectedChildId();
     if (selectedChildId == null || selectedChildId <= 0) {
+      await _applyParentLocale();
       return const _StartupSession(loggedIn: true);
     }
 
@@ -99,15 +130,18 @@ class _AuthGateState extends State<_AuthGate> {
       final child = await parentRepository.getChild(selectedChildId);
       if (!child.isActive) {
         await parentRepository.clearSelectedChild();
+        await _applyParentLocale();
         return const _StartupSession(loggedIn: true);
       }
 
+      appLocaleController.setCode(child.baseLanguage?.code);
       return _StartupSession(
         loggedIn: true,
         childId: child.id,
       );
     } catch (_) {
       await parentRepository.clearSelectedChild();
+      await _applyParentLocale();
       return const _StartupSession(loggedIn: true);
     }
   }
@@ -119,11 +153,13 @@ class _AuthGateState extends State<_AuthGate> {
   }
 
   Future<void> _openChild(BuildContext context, ChildProfile child) async {
+    appLocaleController.setCode(child.baseLanguage?.code);
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ChildRootShell(childId: child.id),
       ),
     );
+    await _applyParentLocale();
   }
 
   @override
@@ -276,6 +312,20 @@ class _ChildRootShellState extends State<ChildRootShell> with WidgetsBindingObse
     super.dispose();
   }
 
+  Future<void> _applyParentLocale() async {
+    try {
+      final parent = await authRepository.getParent();
+      appLocaleController.setCode(parent.interfaceLanguage);
+    } catch (_) {}
+  }
+
+  Future<void> _refreshChildLocale() async {
+    try {
+      final child = await parentRepository.getChild(widget.childId);
+      appLocaleController.setCode(child.baseLanguage?.code);
+    } catch (_) {}
+  }
+
   Future<bool> _verifyParentPin() {
     return showParentPinVerifyDialog(
       context: context,
@@ -291,6 +341,7 @@ class _ChildRootShellState extends State<ChildRootShell> with WidgetsBindingObse
       if (!allowed || !mounted) return;
 
       await parentRepository.clearSelectedChild();
+      await _applyParentLocale();
       if (!mounted) return;
 
       // При восстановлении детского режима после перезапуска ChildRootShell
@@ -333,6 +384,8 @@ class _ChildRootShellState extends State<ChildRootShell> with WidgetsBindingObse
       return;
     }
 
+    await _refreshChildLocale();
+    if (!mounted) return;
     setState(() {
       _homeRevision++;
     });

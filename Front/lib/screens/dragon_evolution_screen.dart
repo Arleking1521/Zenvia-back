@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_repository.dart';
 import '../models/dragon_evolution.dart';
+import '../l10n/app_strings.dart';
 import '../theme/app_colors.dart';
 
 class DragonEvolutionScreen extends StatefulWidget {
@@ -64,10 +65,10 @@ class _DragonEvolutionScreenState extends State<DragonEvolutionScreen> {
                         children: [
                           const Text('🐉', style: TextStyle(fontSize: 58)),
                           const SizedBox(height: 12),
-                          const Text(
-                            'Не удалось загрузить эволюцию дракона',
+                          Text(
+                            context.tr('dragonEvolutionLoadFailed'),
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
                               color: AppColors.deepBlue,
@@ -76,7 +77,7 @@ class _DragonEvolutionScreenState extends State<DragonEvolutionScreen> {
                           const SizedBox(height: 16),
                           FilledButton(
                             onPressed: _reload,
-                            child: const Text('Повторить'),
+                            child: Text(context.tr('retry')),
                           ),
                         ],
                       ),
@@ -130,10 +131,10 @@ class _EvolutionBody extends StatelessWidget {
                   children: [
                     _TopBar(onBack: () => Navigator.of(context).pop()),
                     const SizedBox(height: 10),
-                    const Text(
-                      'Твой дракон растёт\nвместе с тобой!',
+                    Text(
+                      context.tr('dragonGrowsWithYou'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 27,
                         height: 1.05,
@@ -156,7 +157,7 @@ class _EvolutionBody extends StatelessWidget {
                     _LevelProgress(data: data),
                     const SizedBox(height: 14),
                     Text(
-                      current == null ? 'Твой путь начинается' : 'Уровень ${current.number}',
+                      current == null ? context.tr('journeyBegins') : context.tr('levelNumber', {'number': current.number}),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
@@ -175,7 +176,7 @@ class _EvolutionBody extends StatelessWidget {
                     const SizedBox(height: 5),
                     _LevelTitle(
                       title: current == null || current.title.trim().isEmpty
-                          ? 'Юный дракон'
+                          ? context.tr('youngDragon')
                           : current.title.trim(),
                     ),
                     const SizedBox(height: 18),
@@ -189,8 +190,8 @@ class _EvolutionBody extends StatelessWidget {
                             right: 0,
                             child: _SpeechBubble(
                               text: data.isMaxLevel
-                                  ? 'Ты достиг\nмаксимума!'
-                                  : 'Ты делаешь\nуспехи!',
+                                  ? context.tr('maxLevelReached')
+                                  : context.tr('makingProgress'),
                             ),
                           ),
                           Positioned(

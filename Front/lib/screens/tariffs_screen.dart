@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/parent_repository.dart';
 import '../models/subscription.dart';
+import '../l10n/app_strings.dart';
 import '../theme/app_colors.dart';
 
 const bool _fakePaymentsEnabled = bool.fromEnvironment(
@@ -52,7 +53,7 @@ class _TariffsScreenState extends State<TariffsScreen> {
     final code = _promoController.text.trim();
     if (code.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Введите промокод детского сада.')),
+        SnackBar(content: Text(context.tr('promoEnter'))),
       );
       return;
     }
@@ -71,7 +72,7 @@ class _TariffsScreenState extends State<TariffsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Промокод применён: ${offer.kindergartenName}.',
+            context.tr('promoApplied', {'name': offer.kindergartenName}),
           ),
         ),
       );
@@ -106,7 +107,7 @@ class _TariffsScreenState extends State<TariffsScreen> {
               child: Icon(icon, color: color),
             ),
             title: Text(
-              scenario.title,
+              _fakeScenarioTitle(sheetContext, scenario),
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             subtitle: Text(subtitle),
@@ -121,9 +122,9 @@ class _TariffsScreenState extends State<TariffsScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Тестовая оплата',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                Text(
+                  sheetContext.tr('fakePayment'),
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -134,31 +135,31 @@ class _TariffsScreenState extends State<TariffsScreen> {
                 option(
                   scenario: FakePaymentScenario.success,
                   icon: Icons.check_circle_rounded,
-                  subtitle: 'Подписка сразу станет активной.',
+                  subtitle: sheetContext.tr('fakeImmediate'),
                   color: AppColors.primary,
                 ),
                 option(
                   scenario: FakePaymentScenario.declined,
                   icon: Icons.credit_card_off_rounded,
-                  subtitle: 'Имитировать отказ банка.',
+                  subtitle: sheetContext.tr('fakeDecline'),
                   color: AppColors.coral,
                 ),
                 option(
                   scenario: FakePaymentScenario.cancelled,
                   icon: Icons.close_rounded,
-                  subtitle: 'Имитировать отмену оплаты родителем.',
+                  subtitle: sheetContext.tr('fakeCancel'),
                   color: AppColors.purple,
                 ),
                 option(
                   scenario: FakePaymentScenario.pending,
                   icon: Icons.hourglass_top_rounded,
-                  subtitle: 'Создать подписку в статусе ожидания.',
+                  subtitle: sheetContext.tr('fakePending'),
                   color: AppColors.goldDark,
                 ),
                 option(
                   scenario: FakePaymentScenario.networkError,
                   icon: Icons.wifi_off_rounded,
-                  subtitle: 'Имитировать ошибку платёжного сервиса.',
+                  subtitle: sheetContext.tr('fakeError'),
                   color: AppColors.deepBlue,
                 ),
               ],
@@ -169,20 +170,35 @@ class _TariffsScreenState extends State<TariffsScreen> {
     );
   }
 
+  String _fakeScenarioTitle(BuildContext context, FakePaymentScenario scenario) {
+    switch (scenario) {
+      case FakePaymentScenario.success:
+        return context.tr('fakeSuccess');
+      case FakePaymentScenario.declined:
+        return context.tr('paymentDeclined');
+      case FakePaymentScenario.cancelled:
+        return context.tr('paymentCancelled');
+      case FakePaymentScenario.pending:
+        return context.tr('paymentPending');
+      case FakePaymentScenario.networkError:
+        return context.tr('fakePaymentError');
+    }
+  }
+
   Future<void> _showFakePaymentResult(FakePaymentResult result) async {
     if (!mounted) return;
 
     final success = result.result == 'success';
     final pending = result.result == 'pending';
     final title = success
-        ? 'Тестовая оплата успешна'
+        ? context.tr('fakeSuccess')
         : pending
-            ? 'Платёж ожидает подтверждения'
+            ? context.tr('paymentPending')
             : result.result == 'declined'
-                ? 'Платёж отклонён'
+                ? context.tr('paymentDeclined')
                 : result.result == 'cancelled'
-                    ? 'Оплата отменена'
-                    : 'Тестовая оплата';
+                    ? context.tr('paymentCancelled')
+                    : context.tr('fakePayment');
 
     final subscription = result.subscription;
     final period = subscription?.endsAt == null
@@ -198,7 +214,7 @@ class _TariffsScreenState extends State<TariffsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Понятно'),
+            child: Text(context.tr('understood')),
           ),
         ],
       ),
@@ -236,12 +252,12 @@ class _TariffsScreenState extends State<TariffsScreen> {
           await showDialog<void>(
             context: context,
             builder: (_) => AlertDialog(
-              title: const Text('Ошибка тестовой оплаты'),
+              title: Text(context.tr('fakePaymentError')),
               content: Text(e.toString()),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Закрыть'),
+                  child: Text(context.tr('close')),
                 ),
               ],
             ),
@@ -263,14 +279,14 @@ class _TariffsScreenState extends State<TariffsScreen> {
       await showDialog<void>(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text('Тариф оформлен'),
+          title: Text(context.tr('planCreated')),
           content: Text(
-            'Создана подписка со статусом «${sub.statusLabel}».',
+            context.tr('subscriptionStatusCreated', {'status': AppStrings.subscriptionStatus(context, sub.status)}),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Понятно'),
+              child: Text(context.tr('understood')),
             ),
           ],
         ),
@@ -295,19 +311,16 @@ class _TariffsScreenState extends State<TariffsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Сбросить тестовую подписку?'),
-        content: const Text(
-          'Будут удалены только fake-подписки текущего тестового аккаунта. '
-          'После этого можно снова проверить покупку и промокоды.',
-        ),
+        title: Text(context.tr('resetFakeTitle')),
+        content: Text(context.tr('resetFakeText')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена'),
+            child: Text(context.tr('cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Сбросить'),
+            child: Text(context.tr('reset')),
           ),
         ],
       ),
@@ -323,7 +336,7 @@ class _TariffsScreenState extends State<TariffsScreen> {
         _future = _load();
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Тестовая подписка сброшена.')),
+        SnackBar(content: Text(context.tr('fakeResetDone'))),
       );
     } catch (e) {
       if (!mounted) return;
@@ -390,10 +403,10 @@ class _TariffsScreenState extends State<TariffsScreen> {
             ],
             const SizedBox(height: 10),
             Text(
-              '${plan.price} ${plan.currency} / ${plan.durationDays} дней',
+              context.tr('priceDays', {'price': plan.price, 'currency': plan.currency, 'days': plan.durationDays}),
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            Text('Профилей детей: до ${plan.maxChildren}'),
+            Text(context.tr('childrenUpTo', {'count': plan.maxChildren})),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -413,11 +426,11 @@ class _TariffsScreenState extends State<TariffsScreen> {
                     : Text(
                         _fakePaymentsEnabled
                             ? (promoCode == null
-                                ? 'Тестовая оплата'
-                                : 'Тестовая оплата по промокоду')
+                                ? context.tr('fakePayment')
+                                : context.tr('fakePromoPayment'))
                             : (promoCode == null
-                                ? 'Оформить тариф'
-                                : 'Подключить по промокоду'),
+                                ? context.tr('purchasePlan')
+                                : context.tr('connectPromo')),
                       ),
               ),
             ),
@@ -437,27 +450,25 @@ class _TariffsScreenState extends State<TariffsScreen> {
       children: [
         const SizedBox(height: 8),
         Text(
-          'Промокод детского сада',
+          context.tr('kindergartenPromo'),
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w800,
               ),
         ),
         const SizedBox(height: 4),
-        const Text(
-          'Введите код, выданный детским садом, чтобы открыть специальный тариф.',
-        ),
+        Text(context.tr('promoHint')),
         const SizedBox(height: 12),
         TextField(
           controller: _promoController,
           enabled: !disabled && !_validatingPromo,
           textCapitalization: TextCapitalization.characters,
           decoration: InputDecoration(
-            hintText: 'Например, BALAPAN2026',
+            hintText: context.tr('promoExample'),
             prefixIcon: const Icon(Icons.confirmation_number_outlined),
             suffixIcon: _promoController.text.isEmpty
                 ? null
                 : IconButton(
-                    tooltip: 'Очистить',
+                    tooltip: context.tr('clear'),
                     onPressed: disabled || _validatingPromo
                         ? null
                         : () {
@@ -497,7 +508,7 @@ class _TariffsScreenState extends State<TariffsScreen> {
                   )
                 : const Icon(Icons.verified_outlined),
             label: Text(
-              _validatingPromo ? 'Проверяем...' : 'Применить промокод',
+              _validatingPromo ? context.tr('checking') : context.tr('applyPromo'),
             ),
           ),
         ),
@@ -508,8 +519,8 @@ class _TariffsScreenState extends State<TariffsScreen> {
             plan: offer.tariff,
             disabled: disabled,
             promoCode: offer.code,
-            badge: 'Специальный тариф',
-            subtitle: 'Детский сад «${offer.kindergartenName}»',
+            badge: context.tr('specialPlan'),
+            subtitle: context.tr('kindergartenName', {'name': offer.kindergartenName}),
           ),
         ],
       ],
@@ -520,7 +531,7 @@ class _TariffsScreenState extends State<TariffsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Тарифы')),
+      appBar: AppBar(title: Text(context.tr('tariffs'))),
       body: FutureBuilder<_Data>(
         future: _future,
         builder: (context, snapshot) {
@@ -550,15 +561,15 @@ class _TariffsScreenState extends State<TariffsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
+                      Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.science_rounded, color: AppColors.goldDark),
-                          SizedBox(width: 10),
+                          const Icon(Icons.science_rounded, color: AppColors.goldDark),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Режим тестовой оплаты. Реальные деньги не списываются.',
-                              style: TextStyle(fontWeight: FontWeight.w800),
+                              context.tr('fakeModeNotice'),
+                              style: const TextStyle(fontWeight: FontWeight.w800),
                             ),
                           ),
                         ],
@@ -568,7 +579,7 @@ class _TariffsScreenState extends State<TariffsScreen> {
                         OutlinedButton.icon(
                           onPressed: _resetFakeSubscription,
                           icon: const Icon(Icons.restart_alt_rounded),
-                          label: const Text('Сбросить тестовую подписку'),
+                          label: Text(context.tr('resetFakeSubscription')),
                         ),
                       ],
                     ],
@@ -582,7 +593,7 @@ class _TariffsScreenState extends State<TariffsScreen> {
                     leading: const Icon(Icons.workspace_premium_rounded),
                     title: Text(data.current!.tariff.title),
                     subtitle: Text(
-                      'Статус: ${data.current!.statusLabel}',
+                      context.tr('statusValue', {'status': AppStrings.subscriptionStatus(context, data.current!.status)}),
                     ),
                   ),
                 ),

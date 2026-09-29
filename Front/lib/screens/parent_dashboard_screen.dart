@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/auth_repository.dart';
 import '../data/parent_repository.dart';
 import '../models/child_profile.dart';
+import '../l10n/app_strings.dart';
 import '../models/parent_account.dart';
 import '../theme/app_colors.dart';
 import '../widgets/magic_ui.dart';
@@ -52,21 +53,20 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
           title: Text(
             data.childAccess.activeSubscription
-                ? 'Лимит профилей исчерпан'
-                : 'Нужна активная подписка',
+                ? context.tr('profileLimitTitle')
+                : context.tr('subscriptionRequiredTitle'),
           ),
           content: Text(
-            data.childAccess.reason ??
-                'По текущему тарифу нельзя создать ещё один профиль ребёнка.',
+            data.childAccess.reason ?? context.tr('profileLimitText'),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Закрыть'),
+              child: Text(context.tr('close')),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Тарифы'),
+              child: Text(context.tr('tariffs')),
             ),
           ],
         ),
@@ -125,18 +125,18 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-        title: const Text('Удалить профиль?'),
+        title: Text(context.tr('deleteProfileTitle')),
         content: Text(
-          'Профиль «${child.name}» будет скрыт, но учебная история сохранится в базе.',
+          context.tr('deleteProfileText', {'name': child.name}),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена'),
+            child: Text(context.tr('cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Удалить'),
+            child: Text(context.tr('delete')),
           ),
         ],
       ),
@@ -201,7 +201,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                           const SizedBox(height: 8),
                           Text(snapshot.error.toString(), textAlign: TextAlign.center),
                           const SizedBox(height: 14),
-                          MagicPrimaryButton(label: 'Повторить', onPressed: _reload),
+                          MagicPrimaryButton(label: context.tr('retry'), onPressed: _reload),
                         ],
                       ),
                     ),
@@ -278,7 +278,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Здравствуйте, ${data.parent.firstName}!',
+                                    context.tr('helloParent', {'name': data.parent.firstName}),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 23,
@@ -294,8 +294,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 12),
-                                  const Text(
-                                    'Здесь вы управляете семейным обучением ✨',
+                                  Text(
+                                    context.tr('familyLearning'),
                                     style: TextStyle(color: Colors.white, fontSize: 12.5),
                                   ),
                                 ],
@@ -309,15 +309,15 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                     _SubscriptionCard(dashboard: data, onTap: _openTariffs),
                     const SizedBox(height: 22),
                     MagicSectionTitle(
-                      title: 'Профили детей',
-                      action: 'Добавить',
+                      title: context.tr('childrenProfiles'),
+                      action: context.tr('add'),
                       onAction: () => _requestAddChild(data),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       data.childAccess.activeSubscription
-                          ? '${data.childAccess.activeChildren} из ${data.childAccess.maxChildren} профилей'
-                          : 'Нет активной подписки',
+                          ? context.tr('profilesCount', {'active': data.childAccess.activeChildren, 'max': data.childAccess.maxChildren})
+                          : context.tr('noActiveSubscription'),
                       style: const TextStyle(color: AppColors.textSecondary),
                     ),
                     if (!data.childAccess.canCreateChild) ...[
@@ -333,16 +333,16 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                             const SizedBox(height: 8),
                             Text(
                               data.childAccess.canCreateChild
-                                  ? 'Создайте первый профиль ребёнка и начните приключение.'
-                                  : (data.childAccess.reason ?? 'Сначала выберите тариф.'),
+                                  ? context.tr('createFirstChild')
+                                  : (data.childAccess.reason ?? context.tr('chooseTariffFirst')),
                               textAlign: TextAlign.center,
                               style: const TextStyle(color: AppColors.textSecondary),
                             ),
                             const SizedBox(height: 14),
                             MagicPrimaryButton(
                               label: data.childAccess.canCreateChild
-                                  ? 'Создать профиль'
-                                  : 'Выбрать тариф',
+                                  ? context.tr('createProfile')
+                                  : context.tr('chooseTariff'),
                               icon: data.childAccess.canCreateChild
                                   ? Icons.add_rounded
                                   : Icons.workspace_premium_rounded,
@@ -386,13 +386,13 @@ class _SubscriptionCard extends StatelessWidget {
     final access = dashboard.childAccess;
     String subtitle;
     if (sub == null) {
-      subtitle = 'Выберите тариф для семьи';
+      subtitle = context.tr('chooseFamilyTariff');
     } else if (sub.status == 'pending') {
-      subtitle = 'Ожидает оплаты · профили пока недоступны';
+      subtitle = context.tr('pendingProfiles');
     } else if (access.activeSubscription) {
-      subtitle = 'Активна · ${access.activeChildren}/${access.maxChildren} профилей';
+      subtitle = context.tr('activeProfiles', {'active': access.activeChildren, 'max': access.maxChildren});
     } else {
-      subtitle = 'Статус: ${sub.statusLabel}';
+      subtitle = context.tr('statusValue', {'status': AppStrings.subscriptionStatus(context, sub.status)});
     }
 
     return Material(
@@ -422,7 +422,7 @@ class _SubscriptionCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      sub?.tariff.title ?? 'Тариф не выбран',
+                      sub?.tariff.title ?? context.tr('tariffNotSelected'),
                       style: const TextStyle(
                         color: AppColors.deepBlue,
                         fontWeight: FontWeight.w900,
@@ -459,11 +459,11 @@ class _LimitNotice extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              access.reason ?? 'Создание дополнительного профиля недоступно.',
+              access.reason ?? context.tr('extraProfileUnavailable'),
               style: const TextStyle(fontSize: 12.5),
             ),
           ),
-          TextButton(onPressed: onTariffs, child: const Text('Тарифы')),
+          TextButton(onPressed: onTariffs, child: Text(context.tr('tariffs'))),
         ],
       ),
     );
@@ -519,11 +519,11 @@ class _ChildCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Уровень ${child.level?.number ?? 0} · ${child.totalXp} XP',
+                  context.tr('levelXp', {'level': child.level?.number ?? 0, 'xp': child.totalXp}),
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                 ),
                 Text(
-                  child.baseLanguage?.title ?? 'Язык не выбран',
+                  child.baseLanguage?.title ?? context.tr('languageNotSelected'),
                   style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                 ),
               ],
@@ -534,9 +534,9 @@ class _ChildCard extends StatelessWidget {
               if (value == 'edit') onEdit();
               if (value == 'delete') onDelete();
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'edit', child: Text('Редактировать')),
-              PopupMenuItem(value: 'delete', child: Text('Удалить')),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'edit', child: Text(context.tr('edit'))),
+              PopupMenuItem(value: 'delete', child: Text(context.tr('delete'))),
             ],
           ),
           IconButton.filled(

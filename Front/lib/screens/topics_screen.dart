@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/app_repository.dart';
 import '../data/game_repository.dart';
 import '../models/daily_lesson.dart';
+import '../l10n/app_strings.dart';
 import '../models/language.dart';
 import '../models/topic.dart';
 import '../theme/app_colors.dart';
@@ -115,8 +116,8 @@ class _TopicsScreenState extends State<TopicsScreen> {
 
   void _showLockedMessage() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Сначала заверши предыдущую тему, чтобы открыть этот остров.'),
+      SnackBar(
+        content: Text(context.tr('previousTopicFirst')),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -176,10 +177,10 @@ class _TopicsScreenState extends State<TopicsScreen> {
 
                       final topics = snapshot.data ?? const <Topic>[];
                       if (topics.isEmpty) {
-                        return const Center(
+                        return Center(
                           child: _GlassMessage(
                             icon: Icons.cloud_outlined,
-                            text: 'Для этого языка пока нет тем',
+                            text: context.tr('noTopics'),
                           ),
                         );
                       }
@@ -253,9 +254,9 @@ class _MapHeader extends StatelessWidget {
                 ),
               ),
             ),
-            const Expanded(
+            Expanded(
               child: Text(
-                'Карта мира',
+                context.tr('worldMap'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white,
@@ -447,8 +448,8 @@ class _IslandNodeState extends State<_IslandNode>
         button: true,
         enabled: widget.unlocked,
         label: widget.unlocked
-            ? 'Тема ${widget.number}. ${widget.topic.title}'
-            : 'Закрытая тема ${widget.number}. ${widget.topic.title}',
+            ? context.tr('topicNumber', {'number': widget.number, 'title': widget.topic.title})
+            : context.tr('lockedTopicNumber', {'number': widget.number, 'title': widget.topic.title}),
         child: GestureDetector(
           onTap: widget.onTap,
           child: Stack(
@@ -499,7 +500,7 @@ class _IslandNodeState extends State<_IslandNode>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        widget.unlocked ? widget.topic.title : 'Скоро',
+                        widget.unlocked ? widget.topic.title : context.tr('soon'),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
@@ -844,8 +845,8 @@ class _ErrorState extends StatelessWidget {
               color: AppColors.deepBlue,
             ),
             const SizedBox(height: 10),
-            const Text(
-              'Не удалось загрузить карту мира',
+            Text(
+              context.tr('worldMapLoadFailed'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.deepBlue,
@@ -857,7 +858,7 @@ class _ErrorState extends StatelessWidget {
             FilledButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Повторить'),
+              label: Text(context.tr('retry')),
             ),
           ],
         ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../l10n/app_strings.dart';
 import '../theme/app_colors.dart';
 
 class AppBottomNav extends StatelessWidget {
@@ -11,15 +13,15 @@ class AppBottomNav extends StatelessWidget {
     required this.onTap,
   });
 
-  static const _items = [
-    (Icons.home_outlined, 'Главная'),
-    (Icons.menu_book_outlined, 'Темы'),
-    (Icons.sports_esports_outlined, 'Игры'),
-    (Icons.emoji_events_outlined, 'Достижения'),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final items = [
+      (Icons.home_outlined, context.tr('mainNav')),
+      (Icons.menu_book_outlined, context.tr('topicsNav')),
+      (Icons.sports_esports_outlined, context.tr('gamesNav')),
+      (Icons.emoji_events_outlined, context.tr('achievements')),
+    ];
+
     return SafeArea(
       top: false,
       child: Container(
@@ -38,8 +40,8 @@ class AppBottomNav extends StatelessWidget {
           ],
         ),
         child: Row(
-          children: List.generate(_items.length, (index) {
-            final item = _items[index];
+          children: List.generate(items.length, (index) {
+            final item = items[index];
             final selected = index == currentIndex;
 
             return Expanded(
@@ -56,7 +58,9 @@ class AppBottomNav extends StatelessWidget {
                         width: 42,
                         height: 34,
                         decoration: BoxDecoration(
-                          color: selected ? const Color(0xFFE4F5DE) : Colors.transparent,
+                          color: selected
+                              ? const Color(0xFFE4F5DE)
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(18),
                           border: selected
                               ? Border.all(color: const Color(0xFFA9D19E))
@@ -79,7 +83,8 @@ class AppBottomNav extends StatelessWidget {
                           color: selected
                               ? const Color(0xFF477C46)
                               : const Color(0xFF68766A),
-                          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight:
+                              selected ? FontWeight.w700 : FontWeight.w500,
                           fontSize: 9,
                         ),
                       ),

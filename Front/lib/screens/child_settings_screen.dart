@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/parent_repository.dart';
 import '../models/child_profile.dart';
+import '../l10n/app_strings.dart';
 import '../services/audio_settings_service.dart';
 import '../theme/app_colors.dart';
 import 'child_editor_screen.dart';
@@ -85,7 +86,7 @@ class _ChildSettingsScreenState extends State<ChildSettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Профиль ребёнка')),
+      appBar: AppBar(title: Text(context.tr('childProfile'))),
       body: FutureBuilder<ChildProfile>(
         future: _future,
         builder: (context, snapshot) {
@@ -121,7 +122,7 @@ class _ChildSettingsScreenState extends State<ChildSettingsScreen> {
                     ?.copyWith(fontWeight: FontWeight.w800),
               ),
               Text(
-                'XP: ${child.totalXp} · Уровень ${child.level?.number ?? 0}',
+                context.tr('xpLevel', {'xp': child.totalXp, 'level': child.level?.number ?? 0}),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
@@ -129,8 +130,8 @@ class _ChildSettingsScreenState extends State<ChildSettingsScreen> {
                 tileColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 leading: const Icon(Icons.translate_rounded),
-                title: const Text('Базовый язык'),
-                subtitle: Text(child.baseLanguage?.title ?? 'Не выбран'),
+                title: Text(context.tr('baseLanguage')),
+                subtitle: Text(child.baseLanguage?.title ?? context.tr('notSelected')),
                 trailing: const Icon(Icons.lock_outline_rounded),
                 onTap: () => _edit(child),
               ),
@@ -139,13 +140,13 @@ class _ChildSettingsScreenState extends State<ChildSettingsScreen> {
                 tileColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 leading: const Icon(Icons.face_rounded),
-                title: const Text('Имя и аватар'),
+                title: Text(context.tr('nameAndAvatar')),
                 trailing: const Icon(Icons.lock_outline_rounded),
                 onTap: () => _edit(child),
               ),
               const SizedBox(height: 24),
               Text(
-                'Звук обучения',
+                context.tr('learningSound'),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w900,
                       color: AppColors.deepBlue,
@@ -154,8 +155,8 @@ class _ChildSettingsScreenState extends State<ChildSettingsScreen> {
               const SizedBox(height: 10),
               _VolumeSettingCard(
                 icon: Icons.music_note_rounded,
-                title: 'Фоновая музыка',
-                subtitle: 'Музыка в меню, темах и других экранах',
+                title: context.tr('backgroundMusic'),
+                subtitle: context.tr('backgroundMusicHint'),
                 value: _musicVolume,
                 enabled: !_audioSettingsLoading,
                 onChanged: _setMusicVolume,
@@ -163,15 +164,15 @@ class _ChildSettingsScreenState extends State<ChildSettingsScreen> {
               const SizedBox(height: 10),
               _VolumeSettingCard(
                 icon: Icons.record_voice_over_rounded,
-                title: 'Озвучка',
-                subtitle: 'Слова, задания и аудиоматериалы',
+                title: context.tr('voiceover'),
+                subtitle: context.tr('voiceoverHint'),
                 value: _voiceVolume,
                 enabled: !_audioSettingsLoading,
                 onChanged: _setVoiceVolume,
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Громкость меняется сразу и сохраняется для следующих запусков.',
+              Text(
+                context.tr('volumeSavedHint'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
@@ -179,11 +180,11 @@ class _ChildSettingsScreenState extends State<ChildSettingsScreen> {
               OutlinedButton.icon(
                 onPressed: _returnToParent,
                 icon: const Icon(Icons.family_restroom_rounded),
-                label: const Text('Вернуться в кабинет родителя'),
+                label: Text(context.tr('returnToParent')),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Изменение профиля и выход защищены родительским PIN.',
+              Text(
+                context.tr('childSettingsProtected'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),

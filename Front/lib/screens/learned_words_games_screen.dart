@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_repository.dart';
 import '../models/language.dart';
+import '../l10n/app_strings.dart';
 import '../models/learned_word.dart';
 import '../services/audio_settings_service.dart';
 import '../services/background_music_service.dart';
@@ -22,29 +23,29 @@ enum MixedLearnedGameType {
 }
 
 extension MixedLearnedGameTypeX on MixedLearnedGameType {
-  String get title {
+  String title(BuildContext context) {
     switch (this) {
       case MixedLearnedGameType.imageChoice:
-        return 'Найди картинку';
+        return context.tr('gameFindPicture');
       case MixedLearnedGameType.wordChoice:
-        return 'Выбери слово';
+        return context.tr('gameChooseWord');
       case MixedLearnedGameType.audioChoice:
-        return 'Послушай';
+        return context.tr('gameListen');
       case MixedLearnedGameType.matching:
-        return 'Найди пару';
+        return context.tr('gameFindPair');
     }
   }
 
-  String get subtitle {
+  String subtitle(BuildContext context) {
     switch (this) {
       case MixedLearnedGameType.imageChoice:
-        return 'Слово → картинка';
+        return context.tr('wordToPicture');
       case MixedLearnedGameType.wordChoice:
-        return 'Картинка → слово';
+        return context.tr('pictureToWord');
       case MixedLearnedGameType.audioChoice:
-        return 'Аудио → картинка';
+        return context.tr('audioToPicture');
       case MixedLearnedGameType.matching:
-        return 'Соедини пары';
+        return context.tr('connectPairs');
     }
   }
 
@@ -108,8 +109,8 @@ class _LearnedWordsGamesScreenState extends State<LearnedWordsGamesScreen> {
         SnackBar(
           content: Text(
             type == MixedLearnedGameType.audioChoice
-                ? 'Для этой игры нужно минимум 2 изученных слова с аудио.'
-                : 'Сначала выучи минимум 2 слова.',
+                ? context.tr('need2AudioWords')
+                : context.tr('learn2WordsFirst'),
           ),
         ),
       );
@@ -164,8 +165,8 @@ class _LearnedWordsGamesScreenState extends State<LearnedWordsGamesScreen> {
                         children: [
                           const Text('🎮', style: TextStyle(fontSize: 48)),
                           const SizedBox(height: 10),
-                          const Text(
-                            'Не удалось загрузить изученные слова',
+                          Text(
+                            context.tr('learnedWordsLoadFailed'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 18,
@@ -175,7 +176,7 @@ class _LearnedWordsGamesScreenState extends State<LearnedWordsGamesScreen> {
                           ),
                           const SizedBox(height: 14),
                           MagicPrimaryButton(
-                            label: 'Повторить',
+                            label: context.tr('retry'),
                             onPressed: _refresh,
                           ),
                         ],
@@ -201,9 +202,9 @@ class _LearnedWordsGamesScreenState extends State<LearnedWordsGamesScreen> {
                       children: [
                         _RoundBackButton(onTap: () => Navigator.of(context).pop()),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Игровая пещера',
+                            context.tr('gameCave'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 25,
@@ -222,8 +223,8 @@ class _LearnedWordsGamesScreenState extends State<LearnedWordsGamesScreen> {
                         children: [
                           const Text('🎮', style: TextStyle(fontSize: 48)),
                           const SizedBox(height: 5),
-                          const Text(
-                            'Играем со всеми\nизученными словами!',
+                          Text(
+                            context.tr('allLearnedWords'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white,
@@ -234,7 +235,7 @@ class _LearnedWordsGamesScreenState extends State<LearnedWordsGamesScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '${words.length} слов · разные языки',
+                            context.tr('wordsDifferentLanguages', {'count': words.length}),
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
@@ -271,9 +272,9 @@ class _LearnedWordsGamesScreenState extends State<LearnedWordsGamesScreen> {
                             .toList(),
                       ),
                     const SizedBox(height: 18),
-                    const Text(
-                      'Выбери игру',
-                      style: TextStyle(
+                    Text(
+                      context.tr('chooseGame'),
+                      style: const TextStyle(
                         fontSize: 21,
                         fontWeight: FontWeight.w900,
                         color: AppColors.deepBlue,
@@ -281,9 +282,9 @@ class _LearnedWordsGamesScreenState extends State<LearnedWordsGamesScreen> {
                     ),
                     const SizedBox(height: 10),
                     if (words.length < 2)
-                      const MagicCard(
+                      MagicCard(
                         child: Text(
-                          'Сначала выучи хотя бы 2 слова. После этого здесь появятся игры по уже изученному материалу.',
+                          context.tr('need2WordsGames'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             height: 1.35,
@@ -355,7 +356,7 @@ class _MixedGameCard extends StatelessWidget {
               Text(type.emoji, style: const TextStyle(fontSize: 42)),
               const SizedBox(height: 7),
               Text(
-                type.title,
+                type.title(context),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppColors.deepBlue,
@@ -365,7 +366,7 @@ class _MixedGameCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                type.subtitle,
+                type.subtitle(context),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppColors.textSecondary,
@@ -512,7 +513,7 @@ class _MixedLearnedGameScreenState extends State<MixedLearnedGameScreen> {
       SnackBar(
         duration: const Duration(milliseconds: 650),
         backgroundColor: correct ? AppColors.primary : AppColors.coral,
-        content: Text(correct ? 'Верно! 🌟' : 'Попробуем следующее слово 💪'),
+        content: Text(correct ? context.tr('correctStar') : context.tr('nextWordEncourage')),
       ),
     );
 
@@ -614,13 +615,13 @@ class _MixedLearnedGameScreenState extends State<MixedLearnedGameScreen> {
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        title: const Text(
-          'Отличная игра! 🎉',
+        title: Text(
+          context.tr('greatGame'),
           textAlign: TextAlign.center,
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
         content: Text(
-          'Правильных ответов: $_score из $total',
+          context.tr('correctAnswersCount', {'score': _score, 'total': total}),
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
@@ -628,7 +629,7 @@ class _MixedLearnedGameScreenState extends State<MixedLearnedGameScreen> {
         actions: [
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Готово'),
+            child: Text(context.tr('done')),
           ),
         ],
       ),
@@ -659,7 +660,7 @@ class _MixedLearnedGameScreenState extends State<MixedLearnedGameScreen> {
                     _RoundBackButton(onTap: () => Navigator.of(context).pop()),
                     Expanded(
                       child: Text(
-                        '${widget.type.emoji} ${widget.type.title}',
+                        '${widget.type.emoji} ${widget.type.title(context)}',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 19,
@@ -744,11 +745,11 @@ class _MixedLearnedGameScreenState extends State<MixedLearnedGameScreen> {
               Row(
                 children: [
                   _RoundBackButton(onTap: () => Navigator.of(context).pop()),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      '🧩 Найди пару',
+                      context.tr('findPairPuzzle'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 21,
                         fontWeight: FontWeight.w900,
                         color: AppColors.deepBlue,
@@ -759,8 +760,8 @@ class _MixedLearnedGameScreenState extends State<MixedLearnedGameScreen> {
                 ],
               ),
               const SizedBox(height: 14),
-              const Text(
-                'Соедини картинку и слово',
+              Text(
+                context.tr('matchPictureWord'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppColors.textSecondary,

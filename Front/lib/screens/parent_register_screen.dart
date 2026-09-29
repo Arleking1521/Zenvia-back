@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/auth_repository.dart';
+import '../l10n/app_strings.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/magic_ui.dart';
@@ -28,7 +29,7 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
 
   Future<void> _submit() async {
     if (_password.text != _confirm.text) {
-      setState(() => _error = 'Пароли не совпадают.');
+      setState(() => _error = context.tr('passwordsDoNotMatch'));
       return;
     }
     setState(() { _loading = true; _error = null; });
@@ -59,7 +60,7 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
                 children: [
                   IconButton.filled(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back_rounded)),
                   const SizedBox(width: 10),
-                  const Text('Новая семья', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.deepBlue)),
+                  Text(context.tr('newFamily'), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.deepBlue)),
                 ],
               ),
               const SizedBox(height: 16),
@@ -68,19 +69,19 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
               MagicCard(
                 child: Column(
                   children: [
-                    AppTextField(controller: _name, label: 'Имя родителя', hint: 'Наргиз'),
+                    AppTextField(controller: _name, label: context.tr('parentName'), hint: 'Наргиз'),
                     const SizedBox(height: 12),
                     AppTextField(controller: _email, label: 'Email', hint: 'parent@example.com', keyboardType: TextInputType.emailAddress),
                     const SizedBox(height: 12),
-                    AppTextField(controller: _password, label: 'Пароль', hint: 'Минимум 6 символов', obscure: true),
+                    AppTextField(controller: _password, label: context.tr('password'), hint: context.tr('min6'), obscure: true),
                     const SizedBox(height: 12),
-                    AppTextField(controller: _confirm, label: 'Подтверждение пароля', hint: 'Повторите пароль', obscure: true),
+                    AppTextField(controller: _confirm, label: context.tr('confirmPassword'), hint: context.tr('repeatPassword'), obscure: true),
                     if (_error != null) ...[
                       const SizedBox(height: 10),
                       Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w700)),
                     ],
                     const SizedBox(height: 18),
-                    SizedBox(width: double.infinity, child: MagicPrimaryButton(label: _loading ? 'Создаём…' : 'Создать аккаунт', icon: Icons.favorite_rounded, onPressed: _loading ? null : _submit)),
+                    SizedBox(width: double.infinity, child: MagicPrimaryButton(label: _loading ? context.tr('creating') : context.tr('createAccount'), icon: Icons.favorite_rounded, onPressed: _loading ? null : _submit)),
                   ],
                 ),
               ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/subscription.dart';
+import '../l10n/app_strings.dart';
 
 class SubscriptionBlockedScreen extends StatefulWidget {
   final SubscriptionAccessStatus access;
@@ -25,33 +26,33 @@ class _SubscriptionBlockedScreenState extends State<SubscriptionBlockedScreen> {
   bool _retrying = false;
   bool _openingParent = false;
 
-  String get _title {
+  String _title(BuildContext context) {
     switch (widget.access.reason) {
       case 'expired':
-        return 'Ой, приключение\nпоставлено на паузу...';
+        return context.tr('subscriptionPausedTitle');
       case 'pending':
-        return 'Почти готово!';
+        return context.tr('almostReady');
       case 'connection_error':
-        return 'Не получилось\nпроверить доступ';
+        return context.tr('accessCheckFailed');
       case 'cancelled':
-        return 'Приключение\nпока отдыхает';
+        return context.tr('adventureResting');
       default:
-        return 'Новые приключения\nждут тебя!';
+        return context.tr('newAdventures');
     }
   }
 
-  String get _message {
+  String _message(BuildContext context) {
     switch (widget.access.reason) {
       case 'expired':
-        return 'Попроси взрослого помочь продолжить путешествие 💛';
+        return context.tr('subscriptionExpiredMessage');
       case 'pending':
-        return 'Попроси взрослого завершить оплату, и обучение снова откроется.';
+        return context.tr('subscriptionPendingMessage');
       case 'connection_error':
-        return 'Попроси взрослого проверить интернет и попробуй ещё раз.';
+        return context.tr('connectionErrorMessage');
       case 'cancelled':
-        return 'Попроси взрослого снова открыть доступ к обучению.';
+        return context.tr('subscriptionCancelledMessage');
       default:
-        return 'Попроси взрослого открыть доступ к обучению.';
+        return context.tr('subscriptionNeededMessage');
     }
   }
 
@@ -108,35 +109,16 @@ class _SubscriptionBlockedScreenState extends State<SubscriptionBlockedScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
-                        height: 230,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            ColorFiltered(
-                              colorFilter: const ColorFilter.matrix([
-                                .86, .08, .06, 0, 0,
-                                .06, .88, .06, 0, 0,
-                                .06, .10, .84, 0, 0,
-                                0, 0, 0, 1, 0,
-                              ]),
-                              child: Image.asset(
-                                'assets/images/adventure_dragon.webp',
-                                height: 215,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                            const Positioned(
-                              right: 50,
-                              top: 34,
-                              child: Text(
-                                '😢',
-                                style: TextStyle(fontSize: 40),
-                              ),
-                            ),
-                          ],
+                        height: 280,
+                        child: Image.asset(
+                          'assets/images/subscription_blocked_sleep_dragon.png',
+                          height: 272,
+                          fit: BoxFit.contain,
                         ),
                       ),
-                      Container(
+                      Transform.translate(
+                        offset: const Offset(0, -18),
+                        child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
                         decoration: BoxDecoration(
@@ -157,7 +139,7 @@ class _SubscriptionBlockedScreenState extends State<SubscriptionBlockedScreen> {
                         child: Column(
                           children: [
                             Text(
-                              _title,
+                              _title(context),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Color(0xFF174E93),
@@ -168,7 +150,7 @@ class _SubscriptionBlockedScreenState extends State<SubscriptionBlockedScreen> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              _message,
+                              _message(context),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Color(0xFF536783),
@@ -180,7 +162,7 @@ class _SubscriptionBlockedScreenState extends State<SubscriptionBlockedScreen> {
                             const SizedBox(height: 22),
                             _ActionButton(
                               icon: Icons.sports_esports_rounded,
-                              label: 'Пока можно поиграть',
+                              label: context.tr('freePlay'),
                               color: const Color(0xFF49A8FF),
                               onTap: widget.onPlay,
                             ),
@@ -188,8 +170,8 @@ class _SubscriptionBlockedScreenState extends State<SubscriptionBlockedScreen> {
                             _ActionButton(
                               icon: Icons.lock_rounded,
                               label: _openingParent
-                                  ? 'Открываем...'
-                                  : 'Позвать взрослого',
+                                  ? context.tr('opening')
+                                  : context.tr('callAdult'),
                               color: const Color(0xFF36BF70),
                               onTap: _openingParent ? null : _parent,
                             ),
@@ -206,11 +188,12 @@ class _SubscriptionBlockedScreenState extends State<SubscriptionBlockedScreen> {
                                     )
                                   : const Icon(Icons.refresh_rounded),
                               label: Text(
-                                _retrying ? 'Проверяем...' : 'Проверить снова',
+                                _retrying ? context.tr('checking') : context.tr('checkAgain'),
                               ),
                             ),
                           ],
                         ),
+                      ),
                       ),
                     ],
                   ),

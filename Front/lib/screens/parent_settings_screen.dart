@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../data/auth_repository.dart';
 import '../data/parent_repository.dart';
+import '../l10n/app_strings.dart';
 import '../models/parent_account.dart';
+import '../services/app_locale_controller.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/parent_pin_dialog.dart';
@@ -37,11 +39,20 @@ class _ParentSettingsScreenState extends State<ParentSettingsScreen> {
     final value = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Имя родителя'),
-        content: TextField(controller: controller, decoration: const InputDecoration(labelText: 'Имя')),
+        title: Text(context.tr('parentName')),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(labelText: context.tr('name')),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
-          FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Сохранить')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(context.tr('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: Text(context.tr('save')),
+          ),
         ],
       ),
     );
@@ -55,7 +66,74 @@ class _ParentSettingsScreenState extends State<ParentSettingsScreen> {
         });
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    }
+  }
+
+  Future<void> _changeInterfaceLanguage(ParentAccount parent) async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
+                child: Text(
+                  sheetContext.tr('interfaceLanguage'),
+                  style: const TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.deepBlue,
+                  ),
+                ),
+              ),
+              for (final code in const ['ru', 'kk', 'en', 'zh'])
+                RadioListTile<String>(
+                  value: code,
+                  groupValue: parent.interfaceLanguage,
+                  title: Text(AppStrings.languageName(sheetContext, code)),
+                  secondary: Text(
+                    switch (code) {
+                      'ru' => '🇷🇺',
+                      'kk' => '🇰🇿',
+                      'en' => '🇬🇧',
+                      _ => '🇨🇳',
+                    },
+                    style: const TextStyle(fontSize: 26),
+                  ),
+                  onChanged: (value) => Navigator.pop(sheetContext, value),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (selected == null || selected == parent.interfaceLanguage) return;
+
+    try {
+      final updated = await widget.authRepository
+          .updateParentInterfaceLanguage(selected);
+      appLocaleController.setCode(updated.interfaceLanguage);
+      if (!mounted) return;
+      setState(() {
+        _future = Future.value(updated);
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
     }
   }
 
@@ -68,16 +146,31 @@ class _ParentSettingsScreenState extends State<ParentSettingsScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Сменить пароль'),
+          title: Text(context.tr('changePassword')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                AppTextField(controller: old, label: 'Текущий пароль', hint: 'Введите пароль', obscure: true),
+                AppTextField(
+                  controller: old,
+                  label: context.tr('currentPassword'),
+                  hint: context.tr('enterPassword'),
+                  obscure: true,
+                ),
                 const SizedBox(height: 10),
-                AppTextField(controller: fresh, label: 'Новый пароль', hint: 'Минимум 6 символов', obscure: true),
+                AppTextField(
+                  controller: fresh,
+                  label: context.tr('newPassword'),
+                  hint: context.tr('min6'),
+                  obscure: true,
+                ),
                 const SizedBox(height: 10),
-                AppTextField(controller: confirm, label: 'Подтверждение', hint: 'Повторите пароль', obscure: true),
+                AppTextField(
+                  controller: confirm,
+                  label: context.tr('confirmation'),
+                  hint: context.tr('repeatPassword'),
+                  obscure: true,
+                ),
                 if (error != null) ...[
                   const SizedBox(height: 8),
                   Text(error!, style: const TextStyle(color: Colors.red)),
@@ -86,11 +179,14 @@ class _ParentSettingsScreenState extends State<ParentSettingsScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Отмена')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(context.tr('cancel')),
+            ),
             FilledButton(
               onPressed: () async {
                 if (fresh.text != confirm.text) {
-                  setDialogState(() => error = 'Новые пароли не совпадают.');
+                  setDialogState(() => error = context.tr('passwordMismatch'));
                   return;
                 }
                 try {
@@ -99,12 +195,14 @@ class _ParentSettingsScreenState extends State<ParentSettingsScreen> {
                     newPassword: fresh.text,
                     newPasswordConfirm: confirm.text,
                   );
-                  if (dialogContext.mounted) Navigator.pop(dialogContext, true);
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext, true);
+                  }
                 } catch (e) {
                   setDialogState(() => error = e.toString());
                 }
               },
-              child: const Text('Изменить'),
+              child: Text(context.tr('change')),
             ),
           ],
         ),
@@ -114,10 +212,11 @@ class _ParentSettingsScreenState extends State<ParentSettingsScreen> {
     fresh.dispose();
     confirm.dispose();
     if (saved == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Пароль изменён.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('passwordChanged'))),
+      );
     }
   }
-
 
   Future<void> _changeParentPin() async {
     try {
@@ -130,12 +229,18 @@ class _ParentSettingsScreenState extends State<ParentSettingsScreen> {
       );
       if (saved && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(hasPin ? 'Родительский PIN изменён.' : 'Родительский PIN создан.')),
+          SnackBar(
+            content: Text(
+              context.tr(hasPin ? 'parentPinChanged' : 'parentPinCreated'),
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
       }
     }
   }
@@ -151,12 +256,16 @@ class _ParentSettingsScreenState extends State<ParentSettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Настройки родителя')),
+      appBar: AppBar(title: Text(context.tr('parentSettings'))),
       body: FutureBuilder<ParentAccount>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
-          if (snapshot.hasError) return Center(child: Text(snapshot.error.toString()));
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text(snapshot.error.toString()));
+          }
           final parent = snapshot.data!;
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -171,35 +280,61 @@ class _ParentSettingsScreenState extends State<ParentSettingsScreen> {
               const SizedBox(height: 12),
               ListTile(
                 tileColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                leading: const Icon(Icons.translate_rounded),
+                title: Text(context.tr('interfaceLanguage')),
+                subtitle: Text(AppStrings.languageName(
+                  context,
+                  parent.interfaceLanguage,
+                )),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => _changeInterfaceLanguage(parent),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                tileColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 leading: const Icon(Icons.edit_rounded),
-                title: const Text('Изменить имя'),
+                title: Text(context.tr('changeName')),
                 onTap: () => _changeName(parent),
               ),
               const SizedBox(height: 8),
               ListTile(
                 tileColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 leading: const Icon(Icons.lock_reset_rounded),
-                title: const Text('Сменить пароль'),
+                title: Text(context.tr('changePassword')),
                 onTap: _changePassword,
               ),
               const SizedBox(height: 8),
               ListTile(
                 tileColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 leading: const Icon(Icons.lock_rounded),
-                title: const Text('Родительский PIN'),
-                subtitle: const Text('Защита выхода из режима обучения'),
+                title: Text(context.tr('parentPin')),
+                subtitle: Text(context.tr('parentPinProtection')),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: _changeParentPin,
               ),
               const SizedBox(height: 8),
               ListTile(
                 tileColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 leading: const Icon(Icons.logout_rounded, color: Colors.red),
-                title: const Text('Выйти', style: TextStyle(color: Colors.red)),
+                title: Text(
+                  context.tr('logout'),
+                  style: const TextStyle(color: Colors.red),
+                ),
                 onTap: _logout,
               ),
             ],

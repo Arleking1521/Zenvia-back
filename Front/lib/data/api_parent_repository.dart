@@ -388,6 +388,7 @@ class ApiParentRepository implements ParentRepository {
         email: row['email']?.toString() ?? '',
         firstName: row['first_name']?.toString() ?? '',
         childrenCount: _int(row['children_count']),
+        interfaceLanguage: row['interface_language']?.toString() ?? 'ru',
       );
 
   ChildProfile _child(Map<String, dynamic> row) {

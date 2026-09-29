@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../data/game_repository.dart';
 import '../models/game.dart';
+import '../l10n/app_strings.dart';
 import '../services/audio_settings_service.dart';
 import '../services/background_music_service.dart';
 import '../theme/app_colors.dart';
@@ -146,7 +147,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     if (question == null || _sending || _answerResult != null) return;
     if (_matchingPairs.length != question.left.length) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Сначала соедини все пары.')),
+        SnackBar(content: Text(context.tr('connectAllPairsFirst'))),
       );
       return;
     }
@@ -356,7 +357,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   Widget _buildQuestion() {
     final question = _question;
     if (question == null) {
-      return const Center(child: Text('Нет задания.'));
+      return Center(child: Text(context.tr('noQuestion')));
     }
 
     return Column(
@@ -404,7 +405,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
               child: FilledButton(
                 onPressed: _loadNext,
                 child: Text(
-                  question.sequence >= question.total ? 'Завершить' : 'Далее',
+                  question.sequence >= question.total ? context.tr('finish') : context.tr('next'),
                 ),
               ),
             ),
@@ -417,7 +418,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     return Column(
       children: [
         Text(
-          _instruction(question.gameType),
+          _instruction(context, question.gameType),
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
@@ -518,8 +519,8 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Нажми на картинку, чтобы услышать слово ещё раз',
+                  Text(
+                    context.tr('tapPictureHearAgain'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: AppColors.textSecondary,
@@ -563,12 +564,12 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                   const SizedBox(height: 8),
                   Text(
                     !hasAudio
-                        ? 'Для этого слова нет аудио'
+                        ? context.tr('noAudioWord')
                         : _loadingAudio
-                            ? 'Загружаем аудио...'
+                            ? context.tr('loadingAudio')
                             : _playingAudio
-                                ? 'Нажми, чтобы повторить'
-                                : 'Нажми, чтобы послушать ещё раз',
+                                ? context.tr('tapRepeat')
+                                : context.tr('tapListenAgain'),
                   ),
                 ],
               ),
@@ -635,8 +636,8 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                   ],
                   if (canRepeatAudio) ...[
                     const SizedBox(height: 8),
-                    const Text(
-                      'Нажми на слово, чтобы услышать ещё раз',
+                    Text(
+                      context.tr('tapWordHearAgain'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: AppColors.textSecondary,
@@ -743,15 +744,15 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Найди пару',
+          context.tr('findPair'),
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
         ),
         const SizedBox(height: 4),
-        const Text(
-          'Перетащи слово на подходящую картинку',
+        Text(
+          context.tr('dragWordPicture'),
           textAlign: TextAlign.center,
           style: TextStyle(color: AppColors.textSecondary),
         ),
@@ -851,8 +852,8 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                                     color: AppColors.trackGrey,
                                   ),
                                 ),
-                                child: const Text(
-                                  'Перетащи сюда',
+                                child: Text(
+                                  context.tr('dragHere'),
                                   textAlign: TextAlign.center,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -919,8 +920,8 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
         ),
         const SizedBox(height: 18),
         if (_answerResult == null) ...[
-          const Text(
-            'Слова',
+          Text(
+            context.tr('words'),
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppColors.textSecondary,
@@ -957,8 +958,8 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                 : const Icon(Icons.check_rounded),
             label: Text(
               _matchingPairs.length == question.left.length
-                  ? 'Проверить'
-                  : 'Собери все пары',
+                  ? context.tr('check')
+                  : context.tr('makeAllPairs'),
             ),
           ),
         ] else ...[
@@ -984,16 +985,16 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     return null;
   }
 
-  String _instruction(GameType type) {
+  String _instruction(BuildContext context, GameType type) {
     switch (type) {
       case GameType.imageChoice:
-        return 'Выбери правильную картинку';
+        return context.tr('chooseCorrectPicture');
       case GameType.wordChoice:
-        return 'Как называется эта картинка?';
+        return context.tr('whatPictureCalled');
       case GameType.audioChoice:
-        return 'Послушай и выбери картинку';
+        return context.tr('listenChoosePicture');
       case GameType.matching:
-        return 'Найди пару';
+        return context.tr('findPair');
     }
   }
 }
@@ -1146,10 +1147,10 @@ class _FeedbackBanner extends StatelessWidget {
           Expanded(
             child: Text(
               fullyCorrect
-                  ? 'Правильно!'
+                  ? context.tr('right')
                   : result.correctItems > 0
-                      ? 'Правильно: ${result.correctItems}, ошибок: ${result.wrongItems}'
-                      : 'Попробуем ещё — ответ сохранён.',
+                      ? context.tr('resultCorrectWrong', {'correct': result.correctItems, 'wrong': result.wrongItems})
+                      : context.tr('tryNextSaved'),
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
@@ -1177,7 +1178,7 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 10),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 14),
-            FilledButton(onPressed: onRetry, child: const Text('Повторить')),
+            FilledButton(onPressed: onRetry, child: Text(context.tr('retry'))),
           ],
         ),
       ),
