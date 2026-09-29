@@ -54,6 +54,20 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
             'min_length': 'Пароль должен содержать минимум 6 символов.',
         },
     )
+    accept_privacy_policy = serializers.BooleanField(
+        write_only=True,
+        required=True,
+        error_messages={
+            'required': 'Необходимо принять Политику конфиденциальности.',
+        },
+    )
+    accept_terms_of_use = serializers.BooleanField(
+        write_only=True,
+        required=True,
+        error_messages={
+            'required': 'Необходимо принять Условия использования.',
+        },
+    )
 
     class Meta:
         model = User
@@ -64,6 +78,8 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
             'interface_language',
             'password',
             'password_confirm',
+            'accept_privacy_policy',
+            'accept_terms_of_use',
         ]
         read_only_fields = ['id']
 
@@ -76,14 +92,25 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        errors = {}
         if attrs.get('password') != attrs.get('password_confirm'):
-            raise serializers.ValidationError({
-                'password_confirm': 'Пароли не совпадают.'
-            })
+            errors['password_confirm'] = 'Пароли не совпадают.'
+        if attrs.get('accept_privacy_policy') is not True:
+            errors['accept_privacy_policy'] = (
+                'Необходимо принять Политику конфиденциальности.'
+            )
+        if attrs.get('accept_terms_of_use') is not True:
+            errors['accept_terms_of_use'] = (
+                'Необходимо принять Условия использования.'
+            )
+        if errors:
+            raise serializers.ValidationError(errors)
         return attrs
 
     def create(self, validated_data):
         validated_data.pop('password_confirm')
+        validated_data.pop('accept_privacy_policy')
+        validated_data.pop('accept_terms_of_use')
         password = validated_data.pop('password')
         email = validated_data['email'].lower()
 
@@ -98,6 +125,36 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
         )
         user.set_password(password)
         user.save()
+
+        # Если утверждённые юридические документы уже опубликованы,
+        # фиксируем точные версии, действовавшие на момент регистрации.
+        # До публикации финальных документов регистрация остаётся доступной,
+        # но запись LegalAcceptance не создаётся.
+        try:
+            from legal_documents.models import (
+                LegalAcceptance,
+                LegalDocumentVersion,
+            )
+            from legal_documents.views import get_published_document
+
+            for document_type in (
+                LegalDocumentVersion.TYPE_PRIVACY,
+                LegalDocumentVersion.TYPE_TERMS,
+            ):
+                document = get_published_document(
+                    document_type,
+                    user.interface_language,
+                )
+                if document is not None:
+                    LegalAcceptance.objects.get_or_create(
+                        user=user,
+                        document=document,
+                    )
+        except (ImportError, RuntimeError):
+            # Позволяет account-приложению не ломаться, если модуль юридических
+            # документов ещё не установлен в конкретном окружении.
+            pass
+
         return user
 
 
