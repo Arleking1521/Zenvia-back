@@ -243,3 +243,82 @@ class TrialSubscriptionTests(TestCase):
 
         response = self.client.post('/api/account/subscriptions/start-trial/')
         self.assertEqual(response.status_code, 400)
+
+class SubscriptionAutoRenewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='renew@example.com',
+            email='renew@example.com',
+            first_name='Renew Parent',
+            password='ParentPass123!',
+        )
+        self.other_user = User.objects.create_user(
+            username='other-renew@example.com',
+            email='other-renew@example.com',
+            first_name='Other Parent',
+            password='ParentPass123!',
+        )
+        self.tariff = TariffPlan.objects.create(
+            code='renew-test',
+            title='Renew Test',
+            price='2990.00',
+            duration_days=30,
+            max_children=2,
+            is_active=True,
+            is_public=True,
+        )
+        self.ends_at = timezone.now() + timedelta(days=30)
+        self.subscription = Subscription.objects.create(
+            parent=self.user,
+            tariff=self.tariff,
+            status=Subscription.STATUS_ACTIVE,
+            starts_at=timezone.now(),
+            ends_at=self.ends_at,
+            auto_renew=True,
+            payment_provider='fake',
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_disable_auto_renew_keeps_current_period_active(self):
+        response = self.client.post(
+            f'/api/account/subscriptions/{self.subscription.pk}/disable-auto-renew/'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.subscription.refresh_from_db()
+        self.assertFalse(self.subscription.auto_renew)
+        self.assertEqual(self.subscription.status, Subscription.STATUS_ACTIVE)
+        self.assertEqual(self.subscription.ends_at, self.ends_at)
+        self.assertTrue(self.subscription.is_current)
+        self.assertFalse(response.data['auto_renew'])
+
+    def test_disable_auto_renew_is_idempotent(self):
+        self.subscription.auto_renew = False
+        self.subscription.save(update_fields=['auto_renew'])
+
+        response = self.client.post(
+            f'/api/account/subscriptions/{self.subscription.pk}/disable-auto-renew/'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data['auto_renew'])
+
+    def test_parent_cannot_change_another_parents_subscription(self):
+        other_subscription = Subscription.objects.create(
+            parent=self.other_user,
+            tariff=self.tariff,
+            status=Subscription.STATUS_ACTIVE,
+            starts_at=timezone.now(),
+            ends_at=timezone.now() + timedelta(days=30),
+            auto_renew=True,
+        )
+
+        response = self.client.post(
+            f'/api/account/subscriptions/{other_subscription.pk}/disable-auto-renew/'
+        )
+
+        self.assertEqual(response.status_code, 404)
+        other_subscription.refresh_from_db()
+        self.assertTrue(other_subscription.auto_renew)
+

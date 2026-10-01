@@ -339,6 +339,47 @@ class SubscriptionViewSet(
             status=status.HTTP_201_CREATED,
         )
 
+    @action(detail=True, methods=['post'], url_path='disable-auto-renew')
+    @transaction.atomic
+    def disable_auto_renew(self, request, pk=None):
+        """Отключает автопродление, не отменяя текущий оплаченный период.
+
+        Подписка продолжает действовать до ends_at. Для trial автопродление
+        изначально выключено. Когда будет подключён реальный Google Play
+        Billing, здесь также нужно отменять renewal у платёжного провайдера.
+        """
+        subscription = (
+            Subscription.objects
+            .select_for_update()
+            .filter(pk=pk, parent=request.user)
+            .select_related('tariff')
+            .first()
+        )
+        if subscription is None:
+            return Response(
+                {'detail': 'Подписка не найдена.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not subscription.is_current:
+            return Response(
+                {'detail': 'Автопродление можно отключить только у активной подписки.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Идемпотентное действие: повторное нажатие безопасно.
+        if subscription.auto_renew:
+            subscription.auto_renew = False
+            subscription.save(update_fields=['auto_renew', 'updated_at'])
+
+        return Response(
+            SubscriptionSerializer(
+                subscription,
+                context={'request': request},
+            ).data,
+            status=status.HTTP_200_OK,
+        )
+
     @action(detail=False, methods=['post'], url_path='fake-purchase')
     def fake_purchase(self, request):
         if not fake_payments_enabled_for(request.user):
@@ -396,6 +437,9 @@ class SubscriptionViewSet(
             subscription.ends_at = now + timedelta(
                 days=subscription.tariff.duration_days,
             )
+            # Fake payment emulates a recurring paid subscription so the
+            # auto-renew management flow can be tested in the app.
+            subscription.auto_renew = True
             result = 'success'
             message = 'Тестовая оплата успешно проведена.'
         else:
@@ -408,6 +452,7 @@ class SubscriptionViewSet(
             'status',
             'starts_at',
             'ends_at',
+            'auto_renew',
             'payment_provider',
             'external_payment_id',
             'updated_at',
