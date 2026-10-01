@@ -1,10 +1,15 @@
+from math import ceil
+
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from .models import ChildProfile, Subscription
+from .models import ChildProfile, Subscription, TariffPlan
 
 
 CHILD_PROFILE_HEADER = 'X-Child-Profile-ID'
+TRIAL_TARIFF_CODE = 'trial-7-days'
+TRIAL_DEFAULT_DAYS = 7
+
 
 
 def get_child_profile(request, *, required=True):
@@ -124,6 +129,61 @@ def get_subscription_access(parent):
         'tariff_id': latest.tariff_id,
         'tariff_title': latest.tariff.title,
         'ends_at': latest.ends_at,
+    }
+
+
+
+def get_trial_access(parent):
+    """Return one-time free-trial state for the parent dashboard.
+
+    Trial usage is inferred from Subscription.payment_provider='trial', so the
+    feature does not need a separate flag on User. A trial can only be started
+    once per parent account and never auto-renews.
+    """
+    trial = (
+        Subscription.objects
+        .filter(parent=parent, payment_provider='trial')
+        .select_related('tariff')
+        .order_by('-created_at')
+        .first()
+    )
+    trial_tariff = (
+        trial.tariff
+        if trial is not None
+        else TariffPlan.objects.filter(code=TRIAL_TARIFF_CODE).first()
+    )
+    days_total = (
+        int(trial_tariff.duration_days)
+        if trial_tariff is not None
+        else TRIAL_DEFAULT_DAYS
+    )
+
+    active_trial = trial is not None and trial.is_current
+    active_subscription = get_active_subscription(parent)
+    has_pending = parent.subscriptions.filter(
+        status=Subscription.STATUS_PENDING,
+    ).exists()
+
+    eligible = (
+        trial is None
+        and active_subscription is None
+        and not has_pending
+        and (trial_tariff is None or trial_tariff.is_active)
+    )
+
+    days_remaining = 0
+    if active_trial and trial.ends_at is not None:
+        seconds = max((trial.ends_at - timezone.now()).total_seconds(), 0)
+        days_remaining = max(1, ceil(seconds / 86400)) if seconds > 0 else 0
+
+    return {
+        'eligible': eligible,
+        'used': trial is not None,
+        'active': active_trial,
+        'days_total': days_total,
+        'days_remaining': days_remaining,
+        'starts_at': trial.starts_at if trial is not None else None,
+        'ends_at': trial.ends_at if trial is not None else None,
     }
 
 def get_child_profile_access(parent):

@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -173,3 +174,72 @@ class AccountDeletionTests(TestCase):
         self.assertTrue(
             LegalDocumentVersion.objects.filter(pk=self.legal_document.pk).exists()
         )
+
+
+class TrialSubscriptionTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='trial@example.com',
+            email='trial@example.com',
+            first_name='Trial Parent',
+            password='ParentPass123!',
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_trial_can_be_started_once(self):
+        response = self.client.post('/api/account/subscriptions/start-trial/')
+
+        self.assertEqual(response.status_code, 201)
+        subscription = Subscription.objects.get(parent=self.user)
+        self.assertEqual(subscription.payment_provider, 'trial')
+        self.assertEqual(subscription.status, Subscription.STATUS_ACTIVE)
+        self.assertTrue(subscription.is_current)
+        self.assertFalse(subscription.auto_renew)
+        self.assertEqual(subscription.tariff.code, 'trial-7-days')
+        self.assertEqual(subscription.tariff.price, 0)
+
+        second = self.client.post('/api/account/subscriptions/start-trial/')
+        self.assertEqual(second.status_code, 400)
+        self.assertEqual(
+            Subscription.objects.filter(
+                parent=self.user,
+                payment_provider='trial',
+            ).count(),
+            1,
+        )
+
+    def test_dashboard_reports_trial_state(self):
+        before = self.client.get('/api/account/dashboard/')
+        self.assertEqual(before.status_code, 200)
+        self.assertTrue(before.data['trial']['eligible'])
+        self.assertFalse(before.data['trial']['used'])
+
+        self.client.post('/api/account/subscriptions/start-trial/')
+        after = self.client.get('/api/account/dashboard/')
+        self.assertEqual(after.status_code, 200)
+        self.assertTrue(after.data['trial']['active'])
+        self.assertTrue(after.data['trial']['used'])
+        self.assertFalse(after.data['trial']['eligible'])
+        self.assertGreaterEqual(after.data['trial']['days_remaining'], 1)
+
+    def test_active_subscription_blocks_trial(self):
+        tariff = TariffPlan.objects.create(
+            code='paid-test',
+            title='Paid',
+            price='1000.00',
+            duration_days=30,
+            max_children=1,
+            is_active=True,
+            is_public=True,
+        )
+        Subscription.objects.create(
+            parent=self.user,
+            tariff=tariff,
+            status=Subscription.STATUS_ACTIVE,
+            starts_at=timezone.now(),
+            ends_at=timezone.now() + timedelta(days=30),
+        )
+
+        response = self.client.post('/api/account/subscriptions/start-trial/')
+        self.assertEqual(response.status_code, 400)

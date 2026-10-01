@@ -15,7 +15,14 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet, GenericV
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User, Avatar, ChildProfile, TariffPlan, Subscription
-from .services import get_child_profile_access, get_subscription_access
+from .services import (
+    TRIAL_DEFAULT_DAYS,
+    TRIAL_TARIFF_CODE,
+    get_active_subscription,
+    get_child_profile_access,
+    get_subscription_access,
+    get_trial_access,
+)
 from .fake_payments import fake_payments_enabled_for
 from .serializers import (
     ParentRegisterSerializer,
@@ -261,6 +268,77 @@ class SubscriptionViewSet(
             status=status.HTTP_201_CREATED,
         )
 
+    @action(detail=False, methods=['post'], url_path='start-trial')
+    @transaction.atomic
+    def start_trial(self, request):
+        # Lock the parent row so two simultaneous taps cannot create two trials.
+        parent = User.objects.select_for_update().get(pk=request.user.pk)
+
+        if Subscription.objects.filter(
+            parent=parent,
+            payment_provider='trial',
+        ).exists():
+            return Response(
+                {'detail': 'Пробный период для этого аккаунта уже использован.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if (
+            get_active_subscription(parent) is not None
+            or parent.subscriptions.filter(
+                status=Subscription.STATUS_PENDING,
+            ).exists()
+        ):
+            return Response(
+                {
+                    'detail': (
+                        'Нельзя запустить пробный период, пока есть активная '
+                        'подписка или подписка, ожидающая оплаты.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tariff, _ = TariffPlan.objects.get_or_create(
+            code=TRIAL_TARIFF_CODE,
+            defaults={
+                'title': 'Пробный период 7 дней',
+                'description': 'Бесплатный пробный доступ без автопродления.',
+                'price': '0.00',
+                'currency': 'KZT',
+                'duration_days': TRIAL_DEFAULT_DAYS,
+                'max_children': 2,
+                'is_active': True,
+                'is_public': False,
+                'position': 0,
+            },
+        )
+        if not tariff.is_active:
+            return Response(
+                {'detail': 'Пробный период временно отключён.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        now = timezone.now()
+        subscription = Subscription.objects.create(
+            parent=parent,
+            tariff=tariff,
+            status=Subscription.STATUS_ACTIVE,
+            starts_at=now,
+            ends_at=now + timedelta(days=tariff.duration_days),
+            auto_renew=False,
+            payment_provider='trial',
+            external_payment_id='',
+        )
+
+        return Response(
+            SubscriptionSerializer(
+                subscription,
+                context={'request': request},
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )
+
     @action(detail=False, methods=['post'], url_path='fake-purchase')
     def fake_purchase(self, request):
         if not fake_payments_enabled_for(request.user):
@@ -423,4 +501,5 @@ class DashboardView(APIView):
                 if current else None
             ),
             'child_access': get_child_profile_access(request.user),
+            'trial': get_trial_access(request.user),
         })
