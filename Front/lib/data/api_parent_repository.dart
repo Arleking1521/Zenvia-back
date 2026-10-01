@@ -26,6 +26,7 @@ class ApiParentRepository implements ParentRepository {
       final subscription = subMap == null ? null : _subscription(subMap);
       final children = childRows.map(_child).where((c) => c.isActive).toList();
       final accessMap = _map(data['child_access']);
+      final trialMap = _map(data['trial']);
 
       return ParentDashboard(
         parent: _parent(parentMap),
@@ -51,6 +52,9 @@ class ApiParentRepository implements ParentRepository {
                     : 'Для создания профиля ребёнка нужна активная подписка.',
               )
             : _childAccess(accessMap),
+        trial: trialMap == null
+            ? TrialAccessInfo.unavailable
+            : _trialAccess(trialMap),
       );
     } on DioException catch (e) {
       throw ParentApiException(_message(e, 'Не удалось загрузить личный кабинет.'));
@@ -276,6 +280,37 @@ class ApiParentRepository implements ParentRepository {
   }
 
 
+
+  @override
+  Future<SubscriptionInfo> startTrial() async {
+    try {
+      final response = await client.dio.post<Map<String, dynamic>>(
+        ApiConfig.account('subscriptions/start-trial/'),
+      );
+      return _subscription(response.data ?? const <String, dynamic>{});
+    } on DioException catch (e) {
+      throw ParentApiException(
+        _message(e, 'Не удалось активировать пробный период.'),
+      );
+    }
+  }
+
+  @override
+  Future<SubscriptionInfo> disableAutoRenew(int subscriptionId) async {
+    try {
+      final response = await client.dio.post<Map<String, dynamic>>(
+        ApiConfig.account(
+          'subscriptions/$subscriptionId/disable-auto-renew/',
+        ),
+      );
+      return _subscription(response.data ?? const <String, dynamic>{});
+    } on DioException catch (e) {
+      throw ParentApiException(
+        _message(e, 'Не удалось отключить автопродление.'),
+      );
+    }
+  }
+
   @override
   Future<SubscriptionAccessStatus> getSubscriptionAccessStatus() async {
     try {
@@ -370,6 +405,17 @@ class ApiParentRepository implements ParentRepository {
     }
   }
 
+
+
+  TrialAccessInfo _trialAccess(Map<String, dynamic> row) => TrialAccessInfo(
+        eligible: row['eligible'] == true,
+        used: row['used'] == true,
+        active: row['active'] == true,
+        daysTotal: _int(row['days_total']) > 0 ? _int(row['days_total']) : 7,
+        daysRemaining: _int(row['days_remaining']),
+        startsAt: DateTime.tryParse(row['starts_at']?.toString() ?? ''),
+        endsAt: DateTime.tryParse(row['ends_at']?.toString() ?? ''),
+      );
 
   ChildProfileAccess _childAccess(Map<String, dynamic> row) => ChildProfileAccess(
         activeSubscription: row['active_subscription'] == true,

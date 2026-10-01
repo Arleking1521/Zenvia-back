@@ -24,6 +24,7 @@ class _TariffsScreenState extends State<TariffsScreen> {
 
   int? _processingId;
   bool _validatingPromo = false;
+  bool _disablingAutoRenew = false;
   KindergartenPromoOffer? _promoOffer;
 
   @override
@@ -304,6 +305,66 @@ class _TariffsScreenState extends State<TariffsScreen> {
       }
     } finally {
       if (mounted) setState(() => _processingId = null);
+    }
+  }
+
+  String _dateLabel(DateTime? value) {
+    if (value == null) return '—';
+    final date = value.toLocal();
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day.$month.${date.year}';
+  }
+
+  Future<void> _disableAutoRenew(SubscriptionInfo subscription) async {
+    if (_disablingAutoRenew || !subscription.autoRenew) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.tr('disableAutoRenewTitle')),
+        content: Text(
+          dialogContext.tr(
+            'disableAutoRenewText',
+            {'date': _dateLabel(subscription.endsAt)},
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(dialogContext.tr('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(dialogContext.tr('disableAutoRenew')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _disablingAutoRenew = true);
+    try {
+      final updated = await widget.repository.disableAutoRenew(subscription.id);
+      if (!mounted) return;
+      setState(() => _future = _load());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.tr(
+              'autoRenewDisabledSuccess',
+              {'date': _dateLabel(updated.endsAt)},
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _disablingAutoRenew = false);
     }
   }
 
@@ -589,11 +650,87 @@ class _TariffsScreenState extends State<TariffsScreen> {
               ],
               if (data.current != null)
                 Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.workspace_premium_rounded),
-                    title: Text(data.current!.tariff.title),
-                    subtitle: Text(
-                      context.tr('statusValue', {'status': AppStrings.subscriptionStatus(context, data.current!.status)}),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.workspace_premium_rounded),
+                          title: Text(data.current!.tariff.title),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                context.tr(
+                                  'statusValue',
+                                  {
+                                    'status': AppStrings.subscriptionStatus(
+                                      context,
+                                      data.current!.status,
+                                    ),
+                                  },
+                                ),
+                              ),
+                              if (data.current!.isCurrent) ...[
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      data.current!.autoRenew
+                                          ? Icons.autorenew_rounded
+                                          : Icons.event_available_rounded,
+                                      size: 17,
+                                      color: data.current!.autoRenew
+                                          ? AppColors.primary
+                                          : AppColors.textSecondary,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Expanded(
+                                      child: Text(
+                                        data.current!.autoRenew
+                                            ? context.tr('autoRenewEnabled')
+                                            : context.tr(
+                                                'autoRenewDisabledUntil',
+                                                {
+                                                  'date': _dateLabel(
+                                                    data.current!.endsAt,
+                                                  ),
+                                                },
+                                              ),
+                                        style: const TextStyle(fontSize: 12.5),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        if (data.current!.isCurrent && data.current!.autoRenew)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: OutlinedButton.icon(
+                              onPressed: _disablingAutoRenew
+                                  ? null
+                                  : () => _disableAutoRenew(data.current!),
+                              icon: _disablingAutoRenew
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.autorenew_rounded),
+                              label: Text(
+                                _disablingAutoRenew
+                                    ? context.tr('disablingAutoRenew')
+                                    : context.tr('disableAutoRenew'),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),

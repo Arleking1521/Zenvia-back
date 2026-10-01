@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+
 class FireflySequenceGameScreen extends StatefulWidget {
   const FireflySequenceGameScreen({super.key});
 
@@ -27,7 +29,7 @@ class _FireflySequenceGameScreenState
   bool _showingSequence = false;
   bool _waitingForPlayer = false;
   bool _started = false;
-  String _message = 'Запомни, как загораются светлячки';
+  String _message = '';
   int _sessionToken = 0;
 
   int get _fireflyCount => _difficulty?.fireflyCount ?? 0;
@@ -58,7 +60,7 @@ class _FireflySequenceGameScreenState
     _showingSequence = false;
     _waitingForPlayer = false;
     _started = false;
-    _message = 'Запомни, как загораются светлячки';
+    _message = context.tr('rememberFireflies');
   }
 
   void _restartGame() {
@@ -78,7 +80,7 @@ class _FireflySequenceGameScreenState
       _showingSequence = false;
       _waitingForPlayer = false;
       _started = false;
-      _message = 'Запомни, как загораются светлячки';
+      _message = context.tr('rememberFireflies');
     });
   }
 
@@ -102,7 +104,7 @@ class _FireflySequenceGameScreenState
       _waitingForPlayer = false;
       _playerStep = 0;
       _pressedFirefly = null;
-      _message = 'Смотри внимательно...';
+      _message = context.tr('watchCarefully');
     });
 
     await Future<void>.delayed(const Duration(milliseconds: 650));
@@ -127,7 +129,7 @@ class _FireflySequenceGameScreenState
     setState(() {
       _showingSequence = false;
       _waitingForPlayer = true;
-      _message = 'Теперь повтори!';
+      _message = context.tr('repeatNow');
     });
   }
 
@@ -153,7 +155,7 @@ class _FireflySequenceGameScreenState
       setState(() {
         _waitingForPlayer = false;
         _playerStep = 0;
-        _message = 'Почти! Посмотри ещё раз';
+        _message = context.tr('almostWatchAgain');
       });
 
       await Future<void>.delayed(const Duration(milliseconds: 850));
@@ -167,14 +169,14 @@ class _FireflySequenceGameScreenState
 
     if (_playerStep < _sequence.length) {
       setState(() {
-        _message = 'Отлично, продолжай!';
+        _message = context.tr('greatContinue');
       });
       return;
     }
 
     setState(() {
       _waitingForPlayer = false;
-      _message = 'Правильно! ✨';
+      _message = context.tr('correctSparkle');
     });
 
     if (_round >= _maxRounds) {
@@ -192,7 +194,7 @@ class _FireflySequenceGameScreenState
       _round += 1;
       _sequence.add(_random.nextInt(_fireflyCount));
       _playerStep = 0;
-      _message = 'Раунд $_round';
+      _message = context.tr('round', {'round': _round});
     });
 
     await Future<void>.delayed(const Duration(milliseconds: 600));
@@ -224,8 +226,8 @@ class _FireflySequenceGameScreenState
                 fit: BoxFit.contain,
               ),
               const SizedBox(height: 6),
-              const Text(
-                'Ты повторил всё!',
+              Text(
+                context.tr('repeatedAll'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFF124C89),
@@ -235,7 +237,7 @@ class _FireflySequenceGameScreenState
               ),
               const SizedBox(height: 8),
               Text(
-                '${difficulty.title} • ${difficulty.fireflyCount} светлячков',
+                context.tr('firefliesDifficulty', {'difficulty': context.tr(difficulty.titleKey), 'count': difficulty.fireflyCount}),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Color(0xFF5C6F88),
@@ -255,8 +257,8 @@ class _FireflySequenceGameScreenState
                     backgroundColor: const Color(0xFF5AAE63),
                     padding: const EdgeInsets.symmetric(vertical: 13),
                   ),
-                  child: const Text(
-                    'Сыграть ещё',
+                  child: Text(
+                    context.tr('playAgain'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
@@ -272,8 +274,8 @@ class _FireflySequenceGameScreenState
                     Navigator.of(dialogContext).pop();
                     _showDifficultySelection();
                   },
-                  child: const Text(
-                    'Выбрать сложность',
+                  child: Text(
+                    context.tr('chooseDifficulty'),
                     style: TextStyle(
                       fontWeight: FontWeight.w900,
                     ),
@@ -288,8 +290,8 @@ class _FireflySequenceGameScreenState
                     Navigator.of(dialogContext).pop();
                     Navigator.of(context).pop();
                   },
-                  child: const Text(
-                    'В пещеру',
+                  child: Text(
+                    context.tr('toCave'),
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                     ),
@@ -374,7 +376,7 @@ class _FireflySequenceGameScreenState
                 children: [
                   Expanded(
                     child: Text(
-                      'Раунд $_round/$_maxRounds',
+                      context.tr('roundProgress', {'round': _round, 'max': _maxRounds}),
                       style: const TextStyle(
                         color: Color(0xFF274B73),
                         fontSize: 15,
@@ -383,7 +385,7 @@ class _FireflySequenceGameScreenState
                     ),
                   ),
                   Text(
-                    '$sequenceLength ${_signalWord(sequenceLength)}',
+                    context.tr('signalsCount', {'count': sequenceLength}),
                     style: const TextStyle(
                       color: Color(0xFF5C6F88),
                       fontSize: 13,
@@ -396,7 +398,7 @@ class _FireflySequenceGameScreenState
               Row(
                 children: [
                   Text(
-                    difficulty.title,
+                    context.tr(difficulty.titleKey),
                     style: TextStyle(
                       color: difficulty.accent,
                       fontSize: 13,
@@ -405,7 +407,7 @@ class _FireflySequenceGameScreenState
                   ),
                   const Spacer(),
                   Text(
-                    '${difficulty.fireflyCount} светлячков',
+                    context.tr('firefliesCount', {'count': difficulty.fireflyCount}),
                     style: const TextStyle(
                       color: Color(0xFF6D7E92),
                       fontSize: 12,
@@ -416,7 +418,7 @@ class _FireflySequenceGameScreenState
               ),
               const SizedBox(height: 8),
               Text(
-                _message,
+                (_message.isEmpty ? context.tr('rememberFireflies') : _message),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Color(0xFF174F86),
@@ -503,8 +505,8 @@ class _FireflySequenceGameScreenState
                               Icons.play_arrow_rounded,
                               size: 28,
                             ),
-                            label: const Text(
-                              'Начать',
+                            label: Text(
+                              context.tr('start'),
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
@@ -522,10 +524,10 @@ class _FireflySequenceGameScreenState
         const SizedBox(height: 8),
         Text(
           _showingSequence
-              ? 'Сейчас только смотри 👀'
+              ? context.tr('watchOnly')
               : _waitingForPlayer
-                  ? 'Нажимай на светлячков по порядку 👆'
-                  : 'Готов? Светлячки покажут последовательность',
+                  ? context.tr('tapFirefliesOrder')
+                  : context.tr('readySequence'),
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white.withValues(alpha: .92),
@@ -629,14 +631,14 @@ class _TopBar extends StatelessWidget {
     return Row(
       children: [
         _CircleHeaderButton(
-          tooltip: 'Назад',
+          tooltip: context.tr('back'),
           icon: Icons.arrow_back_rounded,
           onPressed: onBack,
         ),
         const SizedBox(width: 12),
-        const Expanded(
+        Expanded(
           child: Text(
-            'Повтори за светлячками',
+            context.tr('repeatFireflies'),
             style: TextStyle(
               color: Colors.white,
               fontSize: 21,
@@ -653,13 +655,13 @@ class _TopBar extends StatelessWidget {
         ),
         if (hasDifficulty) ...[
           _CircleHeaderButton(
-            tooltip: 'Выбрать сложность',
+            tooltip: context.tr('chooseDifficulty'),
             icon: Icons.grid_view_rounded,
             onPressed: onChangeDifficulty,
           ),
           const SizedBox(width: 8),
           _CircleHeaderButton(
-            tooltip: 'Начать заново',
+            tooltip: context.tr('restart'),
             icon: Icons.refresh_rounded,
             onPressed: onRestart,
           ),
@@ -687,10 +689,10 @@ class _DifficultyPicker extends StatelessWidget {
             color: Colors.white.withValues(alpha: .92),
             borderRadius: BorderRadius.circular(24),
           ),
-          child: const Column(
+          child: Column(
             children: [
               Text(
-                'Выбери сложность',
+                context.tr('chooseDifficultyTitle'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFF174F86),
@@ -698,9 +700,9 @@ class _DifficultyPicker extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              SizedBox(height: 5),
+              const SizedBox(height: 5),
               Text(
-                'Чем больше светлячков, тем сложнее запомнить порядок',
+                context.tr('moreFirefliesHarder'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFF5C6F88),
@@ -797,7 +799,7 @@ class _DifficultyTileState extends State<_DifficultyTile> {
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
-                  difficulty.title,
+                  context.tr(difficulty.titleKey),
                   maxLines: 1,
                   style: TextStyle(
                     color: difficulty.accent,
@@ -808,7 +810,7 @@ class _DifficultyTileState extends State<_DifficultyTile> {
               ),
               const SizedBox(height: 3),
               Text(
-                '${difficulty.fireflyCount} светлячков',
+                context.tr('firefliesCount', {'count': difficulty.fireflyCount}),
                 style: const TextStyle(
                   color: Color(0xFF5C6F88),
                   fontSize: 12,
@@ -883,7 +885,7 @@ class _FireflyButton extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: enabled,
-      label: 'Светлячок',
+      label: context.tr('firefly'),
       child: GestureDetector(
         onTap: enabled ? onTap : null,
         child: AnimatedScale(
@@ -972,32 +974,32 @@ class _CircleHeaderButton extends StatelessWidget {
 
 enum _FireflyDifficulty {
   easy(
-    title: 'Лёгкий',
+    titleKey: 'easy',
     fireflyCount: 4,
     accent: Color(0xFF4EAE66),
   ),
   medium(
-    title: 'Средний',
+    titleKey: 'medium',
     fireflyCount: 6,
     accent: Color(0xFF2E8ED5),
   ),
   hard(
-    title: 'Сложный',
+    titleKey: 'hard',
     fireflyCount: 8,
     accent: Color(0xFFE48B34),
   ),
   superHard(
-    title: 'Суперсложный',
+    titleKey: 'superHardOne',
     fireflyCount: 10,
     accent: Color(0xFF9B58C8),
   );
 
-  final String title;
+  final String titleKey;
   final int fireflyCount;
   final Color accent;
 
   const _FireflyDifficulty({
-    required this.title,
+    required this.titleKey,
     required this.fireflyCount,
     required this.accent,
   });

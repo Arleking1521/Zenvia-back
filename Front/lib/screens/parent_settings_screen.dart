@@ -2,23 +2,25 @@ import 'package:flutter/material.dart';
 
 import '../data/auth_repository.dart';
 import '../data/parent_repository.dart';
+import '../data/legal_repository.dart';
 import '../l10n/app_strings.dart';
 import '../models/parent_account.dart';
 import '../services/app_locale_controller.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/parent_pin_dialog.dart';
+import 'legal_document_screen.dart';
 
 class ParentSettingsScreen extends StatefulWidget {
   final AuthRepository authRepository;
   final ParentRepository parentRepository;
-  final VoidCallback onLoggedOut;
+  final LegalRepository legalRepository;
 
   const ParentSettingsScreen({
     super.key,
     required this.authRepository,
     required this.parentRepository,
-    required this.onLoggedOut,
+    required this.legalRepository,
   });
 
   @override
@@ -245,11 +247,169 @@ class _ParentSettingsScreenState extends State<ParentSettingsScreen> {
     }
   }
 
+  Future<void> _openLegalDocument(String type) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LegalDocumentScreen(
+          repository: widget.legalRepository,
+          type: type,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteAccount() async {
+    final password = TextEditingController();
+    bool understood = false;
+    bool deleting = false;
+    String? error;
+
+    final deleted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.red),
+              const SizedBox(width: 10),
+              Expanded(child: Text(context.tr('deleteAccountTitle'))),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.tr('deleteAccountWarning'),
+                  style: const TextStyle(height: 1.4),
+                ),
+                const SizedBox(height: 14),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  activeColor: Colors.red,
+                  value: understood,
+                  onChanged: deleting
+                      ? null
+                      : (value) => setDialogState(
+                            () => understood = value ?? false,
+                          ),
+                  title: Text(
+                    context.tr('deleteAccountUnderstand'),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                AppTextField(
+                  controller: password,
+                  label: context.tr('parentPassword'),
+                  hint: context.tr('deleteAccountPasswordHint'),
+                  obscure: true,
+                ),
+                if (error != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    error!,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: deleting
+                  ? null
+                  : () => Navigator.pop(dialogContext, false),
+              child: Text(context.tr('cancel')),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: (!understood || deleting)
+                  ? null
+                  : () async {
+                      if (password.text.isEmpty) {
+                        setDialogState(
+                          () => error = context.tr('enterParentPassword'),
+                        );
+                        return;
+                      }
+
+                      setDialogState(() {
+                        deleting = true;
+                        error = null;
+                      });
+
+                      try {
+                        await widget.authRepository.deleteAccount(
+                          password: password.text,
+                        );
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext, true);
+                        }
+                      } catch (e) {
+                        if (!dialogContext.mounted) return;
+                        setDialogState(() {
+                          deleting = false;
+                          error = e.toString() == 'invalid_password'
+                              ? context.tr('deleteAccountWrongPassword')
+                              : context.tr('deleteAccountFailed');
+                        });
+                      }
+                    },
+              child: deleting
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(context.tr('deletingAccount')),
+                      ],
+                    )
+                  : Text(context.tr('deleteAccountAction')),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // showDialog() завершается сразу после pop(), но route диалога ещё некоторое
+    // время участвует в reverse-анимации. Нельзя тут же удалять родительский
+    // экран настроек: это может привести к framework assertion
+    // `_dependents.isEmpty`. Даём диалогу полностью выйти из дерева.
+    FocusManager.instance.primaryFocus?.unfocus();
+    await Future<void>.delayed(const Duration(milliseconds: 420));
+
+    password.dispose();
+
+    if (deleted == true && mounted) {
+      // Возвращаем ParentDashboard признак завершённой сессии. Сам dashboard
+      // покажет Login локально, не заставляя корневой AuthGate перестраивать
+      // всё приложение одновременно с удалением route настроек.
+      Navigator.of(context).pop(true);
+    }
+  }
+
   Future<void> _logout() async {
     await widget.authRepository.logout();
     if (!mounted) return;
-    Navigator.of(context).popUntil((route) => route.isFirst);
-    widget.onLoggedOut();
+    // Та же безопасная схема используется для обычного выхода.
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -324,7 +484,68 @@ class _ParentSettingsScreenState extends State<ParentSettingsScreen> {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: _changeParentPin,
               ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 8),
+                child: Text(
+                  context.tr('privacyAndDocuments'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.deepBlue,
+                  ),
+                ),
+              ),
+              ListTile(
+                tileColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                leading: const Icon(Icons.privacy_tip_outlined),
+                title: Text(context.tr('privacyPolicy')),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => _openLegalDocument('privacy'),
+              ),
               const SizedBox(height: 8),
+              ListTile(
+                tileColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                leading: const Icon(Icons.description_outlined),
+                title: Text(context.tr('termsOfUse')),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => _openLegalDocument('terms'),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 8),
+                child: Text(
+                  context.tr('accountManagement'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.deepBlue,
+                  ),
+                ),
+              ),
+              ListTile(
+                tileColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Colors.red.withValues(alpha: .18)),
+                ),
+                leading: const Icon(Icons.delete_forever_rounded, color: Colors.red),
+                title: Text(
+                  context.tr('deleteAccount'),
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                subtitle: Text(context.tr('deleteAccountHint')),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Colors.red),
+                onTap: _deleteAccount,
+              ),
+              const SizedBox(height: 20),
               ListTile(
                 tileColor: Colors.white,
                 shape: RoundedRectangleBorder(

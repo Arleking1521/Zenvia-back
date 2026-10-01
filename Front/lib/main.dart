@@ -7,10 +7,12 @@ import 'data/api/api_client.dart';
 import 'data/api_app_repository.dart';
 import 'data/api_auth_repository.dart';
 import 'data/api_game_repository.dart';
+import 'data/api_legal_repository.dart';
 import 'data/api_parent_repository.dart';
 import 'data/app_repository.dart';
 import 'data/auth_repository.dart';
 import 'data/game_repository.dart';
+import 'data/legal_repository.dart';
 import 'data/parent_repository.dart';
 import 'models/child_profile.dart';
 import 'models/subscription.dart';
@@ -44,6 +46,7 @@ final AuthRepository authRepository = ApiAuthRepository(apiClient);
 final ParentRepository parentRepository = ApiParentRepository(apiClient);
 final AppRepository appRepository = ApiAppRepository(apiClient);
 final GameRepository gameRepository = ApiGameRepository(apiClient);
+final LegalRepository legalRepository = ApiLegalRepository(apiClient);
 
 class KidsLangApp extends StatelessWidget {
   const KidsLangApp({super.key});
@@ -194,6 +197,7 @@ class _AuthGateState extends State<_AuthGate> {
         if (!session.loggedIn) {
           return ParentLoginScreen(
             authRepository: authRepository,
+            legalRepository: legalRepository,
             onLoggedIn: _refresh,
           );
         }
@@ -211,6 +215,7 @@ class _AuthGateState extends State<_AuthGate> {
         return ParentDashboardScreen(
           authRepository: authRepository,
           parentRepository: parentRepository,
+          legalRepository: legalRepository,
           onOpenChild: (child) => _openChild(context, child),
           onLoggedOut: _refresh,
         );
@@ -501,6 +506,7 @@ class _ChildRootShellState extends State<ChildRootShell> with WidgetsBindingObse
             _openFreePlay();
           },
           onParent: () => _leaveChildMode(),
+          onSettings: _openSettings,
           onRetry: () => _checkSubscriptionAccess(showLoading: false),
         ),
       );

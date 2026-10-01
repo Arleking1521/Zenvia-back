@@ -2,19 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../data/auth_repository.dart';
 import '../data/parent_repository.dart';
+import '../data/legal_repository.dart';
 import '../models/child_profile.dart';
 import '../l10n/app_strings.dart';
 import '../models/parent_account.dart';
 import '../theme/app_colors.dart';
+import '../services/app_locale_controller.dart';
 import '../widgets/magic_ui.dart';
 import '../widgets/parent_pin_dialog.dart';
 import 'child_editor_screen.dart';
 import 'parent_settings_screen.dart';
+import 'parent_login_screen.dart';
 import 'tariffs_screen.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   final AuthRepository authRepository;
   final ParentRepository parentRepository;
+  final LegalRepository legalRepository;
   final Future<void> Function(ChildProfile child) onOpenChild;
   final VoidCallback onLoggedOut;
 
@@ -22,6 +26,7 @@ class ParentDashboardScreen extends StatefulWidget {
     super.key,
     required this.authRepository,
     required this.parentRepository,
+    required this.legalRepository,
     required this.onOpenChild,
     required this.onLoggedOut,
   });
@@ -32,6 +37,8 @@ class ParentDashboardScreen extends StatefulWidget {
 
 class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   late Future<ParentDashboard> _future;
+  bool _showLogin = false;
+  bool _startingTrial = false;
 
   @override
   void initState() {
@@ -47,17 +54,25 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
   Future<void> _requestAddChild(ParentDashboard data) async {
     if (!data.childAccess.canCreateChild) {
-      final goToTariffs = await showDialog<bool>(
+      final useTrial = data.trial.eligible;
+      final proceed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
           title: Text(
-            data.childAccess.activeSubscription
-                ? context.tr('profileLimitTitle')
-                : context.tr('subscriptionRequiredTitle'),
+            useTrial
+                ? context.tr(
+                    'trialOfferTitle',
+                    {'days': data.trial.daysTotal},
+                  )
+                : (data.childAccess.activeSubscription
+                    ? context.tr('profileLimitTitle')
+                    : context.tr('subscriptionRequiredTitle')),
           ),
           content: Text(
-            data.childAccess.reason ?? context.tr('profileLimitText'),
+            useTrial
+                ? context.tr('trialOfferSubtitle')
+                : (data.childAccess.reason ?? context.tr('profileLimitText')),
           ),
           actions: [
             TextButton(
@@ -66,12 +81,20 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: Text(context.tr('tariffs')),
+              child: Text(
+                useTrial ? context.tr('trialStart') : context.tr('tariffs'),
+              ),
             ),
           ],
         ),
       );
-      if (goToTariffs == true && mounted) await _openTariffs();
+      if (proceed == true && mounted) {
+        if (useTrial) {
+          await _startTrial(data);
+        } else {
+          await _openTariffs();
+        }
+      }
       return;
     }
 
@@ -154,6 +177,33 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     }
   }
 
+
+  Future<void> _startTrial(ParentDashboard data) async {
+    if (_startingTrial || !data.trial.eligible) return;
+
+    setState(() => _startingTrial = true);
+    try {
+      await widget.parentRepository.startTrial();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.tr('trialStarted', {'days': data.trial.daysTotal}),
+          ),
+        ),
+      );
+      _reload();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _startingTrial = false);
+    }
+  }
+
   Future<void> _openTariffs() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -163,21 +213,55 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     if (mounted) _reload();
   }
 
+  Future<void> _handleLoginAfterSessionEnded() async {
+    try {
+      final parent = await widget.authRepository.getParent();
+      appLocaleController.setCode(parent.interfaceLanguage);
+    } catch (_) {
+      // Locale не должен блокировать вход в новый аккаунт.
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _showLogin = false;
+      _future = widget.parentRepository.getDashboard();
+    });
+  }
+
   Future<void> _openSettings() async {
-    await Navigator.of(context).push(
+    final shouldReturnToLogin = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => ParentSettingsScreen(
           authRepository: widget.authRepository,
           parentRepository: widget.parentRepository,
-          onLoggedOut: widget.onLoggedOut,
+          legalRepository: widget.legalRepository,
         ),
       ),
     );
-    if (mounted) _reload();
+
+    if (!mounted) return;
+
+    if (shouldReturnToLogin == true) {
+      // После logout/delete-account не трогаем корневой AuthGate. Переключаем
+      // только содержимое ParentDashboard на Login — Navigator уже закончил
+      // удаление экрана настроек, поэтому inherited-зависимости не ломаются.
+      setState(() => _showLogin = true);
+      return;
+    }
+
+    _reload();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_showLogin) {
+      return ParentLoginScreen(
+        authRepository: widget.authRepository,
+        legalRepository: widget.legalRepository,
+        onLoggedIn: _handleLoginAfterSessionEnded,
+      );
+    }
+
     return Scaffold(
       body: FantasyBackground(
         child: SafeArea(
@@ -306,7 +390,19 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    _SubscriptionCard(dashboard: data, onTap: _openTariffs),
+                    if (data.trial.eligible) ...[
+                      _TrialOfferCard(
+                        trial: data.trial,
+                        loading: _startingTrial,
+                        onStart: () => _startTrial(data),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    _SubscriptionCard(
+                      dashboard: data,
+                      trial: data.trial,
+                      onTap: _openTariffs,
+                    ),
                     const SizedBox(height: 22),
                     MagicSectionTitle(
                       title: context.tr('childrenProfiles'),
@@ -320,7 +416,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                           : context.tr('noActiveSubscription'),
                       style: const TextStyle(color: AppColors.textSecondary),
                     ),
-                    if (!data.childAccess.canCreateChild) ...[
+                    if (!data.childAccess.canCreateChild && !data.trial.eligible) ...[
                       const SizedBox(height: 10),
                       _LimitNotice(access: data.childAccess, onTariffs: _openTariffs),
                     ],
@@ -334,7 +430,13 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                             Text(
                               data.childAccess.canCreateChild
                                   ? context.tr('createFirstChild')
-                                  : (data.childAccess.reason ?? context.tr('chooseTariffFirst')),
+                                  : data.trial.eligible
+                                      ? context.tr(
+                                          'trialCreateChildHint',
+                                          {'days': data.trial.daysTotal},
+                                        )
+                                      : (data.childAccess.reason ??
+                                          context.tr('chooseTariffFirst')),
                               textAlign: TextAlign.center,
                               style: const TextStyle(color: AppColors.textSecondary),
                             ),
@@ -342,13 +444,23 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                             MagicPrimaryButton(
                               label: data.childAccess.canCreateChild
                                   ? context.tr('createProfile')
-                                  : context.tr('chooseTariff'),
+                                  : data.trial.eligible
+                                      ? (_startingTrial
+                                          ? context.tr('trialStarting')
+                                          : context.tr('trialStart'))
+                                      : context.tr('chooseTariff'),
                               icon: data.childAccess.canCreateChild
                                   ? Icons.add_rounded
-                                  : Icons.workspace_premium_rounded,
-                              onPressed: () => data.childAccess.canCreateChild
-                                  ? _requestAddChild(data)
-                                  : _openTariffs(),
+                                  : data.trial.eligible
+                                      ? Icons.auto_awesome_rounded
+                                      : Icons.workspace_premium_rounded,
+                              onPressed: data.childAccess.canCreateChild
+                                  ? () => _requestAddChild(data)
+                                  : data.trial.eligible
+                                      ? (_startingTrial
+                                          ? null
+                                          : () => _startTrial(data))
+                                      : _openTariffs,
                             ),
                           ],
                         ),
@@ -375,24 +487,149 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   }
 }
 
+
+class _TrialOfferCard extends StatelessWidget {
+  final TrialAccessInfo trial;
+  final bool loading;
+  final VoidCallback onStart;
+
+  const _TrialOfferCard({
+    required this.trial,
+    required this.loading,
+    required this.onStart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MagicCard(
+      color: const Color(0xFFEAF8FF),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  Icons.card_giftcard_rounded,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.tr(
+                        'trialOfferTitle',
+                        {'days': trial.daysTotal},
+                      ),
+                      style: const TextStyle(
+                        color: AppColors.deepBlue,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 19,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      context.tr('trialOfferSubtitle'),
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12.5,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          MagicPrimaryButton(
+            label: loading
+                ? context.tr('trialStarting')
+                : context.tr('trialStart'),
+            icon: Icons.auto_awesome_rounded,
+            onPressed: loading ? null : onStart,
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              context.tr('trialNoCard'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatDate(DateTime? value) {
+  if (value == null) return '—';
+  final date = value.toLocal();
+  final day = date.day.toString().padLeft(2, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  return '$day.$month.${date.year}';
+}
+
 class _SubscriptionCard extends StatelessWidget {
   final ParentDashboard dashboard;
+  final TrialAccessInfo trial;
   final VoidCallback onTap;
-  const _SubscriptionCard({required this.dashboard, required this.onTap});
+  const _SubscriptionCard({
+    required this.dashboard,
+    required this.trial,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final sub = dashboard.subscription;
     final access = dashboard.childAccess;
+    String title;
     String subtitle;
-    if (sub == null) {
+    if (trial.active) {
+      title = context.tr('trialActiveTitle');
+      subtitle = context.tr('trialDaysRemaining', {
+        'days': trial.daysRemaining,
+        'date': _formatDate(trial.endsAt),
+      });
+    } else if (sub == null && trial.used) {
+      title = context.tr('trialEnded');
+      subtitle = context.tr('chooseFamilyTariff');
+    } else if (sub == null) {
+      title = context.tr('tariffNotSelected');
       subtitle = context.tr('chooseFamilyTariff');
     } else if (sub.status == 'pending') {
+      title = sub.tariff.title;
       subtitle = context.tr('pendingProfiles');
     } else if (access.activeSubscription) {
-      subtitle = context.tr('activeProfiles', {'active': access.activeChildren, 'max': access.maxChildren});
+      title = sub.tariff.title;
+      subtitle = context.tr('activeProfiles', {
+        'active': access.activeChildren,
+        'max': access.maxChildren,
+      });
     } else {
-      subtitle = context.tr('statusValue', {'status': AppStrings.subscriptionStatus(context, sub.status)});
+      title = sub.tariff.title;
+      subtitle = context.tr(
+        'statusValue',
+        {'status': AppStrings.subscriptionStatus(context, sub.status)},
+      );
     }
 
     return Material(
@@ -422,7 +659,7 @@ class _SubscriptionCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      sub?.tariff.title ?? context.tr('tariffNotSelected'),
+                      title,
                       style: const TextStyle(
                         color: AppColors.deepBlue,
                         fontWeight: FontWeight.w900,

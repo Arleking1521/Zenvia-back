@@ -1,4 +1,4 @@
-name: kids_lang_app
+name: zenvia_kids
 description: Приложение для изучения языков для детей (RU/KZ/EN/CN)
 publish_to: 'none'
 version: 0.1.0
@@ -15,6 +15,11 @@ dependencies:
   dio: ^5.7.0
   flutter_secure_storage: ^9.2.2
   shared_preferences: ^2.3.2
+  flutter_html: 3.0.0
+  flutter_html_table: 3.0.0
+  # flutter_html 3.0.0 uses an internal API removed in html 0.15.7.
+  # Pin 0.15.6 until flutter_html is updated upstream.
+  html: 0.15.6
   audioplayers: ^6.1.0
   # Подключим после API-контента:
   # flutter_tts: ^4.0.0

@@ -13,6 +13,8 @@ abstract class AuthRepository {
     required String email,
     required String password,
     required String passwordConfirm,
+    required bool acceptPrivacyPolicy,
+    required bool acceptTermsOfUse,
   });
 
   Future<ParentAccount> getParent();
@@ -25,6 +27,10 @@ abstract class AuthRepository {
     required String oldPassword,
     required String newPassword,
     required String newPasswordConfirm,
+  });
+
+  Future<void> deleteAccount({
+    required String password,
   });
 
   Future<void> logout();

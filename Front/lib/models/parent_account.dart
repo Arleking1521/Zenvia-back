@@ -41,16 +41,49 @@ class ChildProfileAccess {
   });
 }
 
+
+class TrialAccessInfo {
+  final bool eligible;
+  final bool used;
+  final bool active;
+  final int daysTotal;
+  final int daysRemaining;
+  final DateTime? startsAt;
+  final DateTime? endsAt;
+
+  const TrialAccessInfo({
+    required this.eligible,
+    required this.used,
+    required this.active,
+    required this.daysTotal,
+    required this.daysRemaining,
+    required this.startsAt,
+    required this.endsAt,
+  });
+
+  static const unavailable = TrialAccessInfo(
+    eligible: false,
+    used: false,
+    active: false,
+    daysTotal: 7,
+    daysRemaining: 0,
+    startsAt: null,
+    endsAt: null,
+  );
+}
+
 class ParentDashboard {
   final ParentAccount parent;
   final List<ChildProfile> children;
   final SubscriptionInfo? subscription;
   final ChildProfileAccess childAccess;
+  final TrialAccessInfo trial;
 
   const ParentDashboard({
     required this.parent,
     required this.children,
     required this.subscription,
     required this.childAccess,
+    required this.trial,
   });
 }

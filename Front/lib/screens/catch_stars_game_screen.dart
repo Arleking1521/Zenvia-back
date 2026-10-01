@@ -3,6 +3,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+
 class CatchStarsGameScreen extends StatefulWidget {
   const CatchStarsGameScreen({super.key});
 
@@ -27,7 +29,7 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
   int _secondsLeft = _gameSeconds;
   int _score = 0;
   int _nextId = 0;
-  String _message = 'Лови только звёздочки! ⭐';
+  String _message = '';
 
   double _boardWidth = 0;
   double _boardHeight = 0;
@@ -59,7 +61,7 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
       _score = 0;
       _nextId = 0;
       _objects.clear();
-      _message = 'Лови только звёздочки! ⭐';
+      _message = context.tr('catchOnlyStars');
     });
   }
 
@@ -75,7 +77,7 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
       _score = 0;
       _nextId = 0;
       _objects.clear();
-      _message = 'Лови звёздочки!';
+      _message = context.tr('catchStarsShort');
     });
 
     _spawnObject();
@@ -163,13 +165,13 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
       switch (object.type) {
         case _CatchObjectType.star:
           _score += 1;
-          _message = 'Поймал звёздочку! ⭐';
+          _message = context.tr('caughtStar');
           break;
         case _CatchObjectType.cloud:
-          _message = 'Это облачко ☁️';
+          _message = context.tr('thisCloud');
           break;
         case _CatchObjectType.egg:
-          _message = 'Это драконье яйцо 🥚';
+          _message = context.tr('thisDragonEgg');
           break;
       }
     });
@@ -185,7 +187,7 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
       _started = false;
       _finished = true;
       _objects.clear();
-      _message = 'Раунд закончен!';
+      _message = context.tr('roundFinished');
     });
 
     Future<void>.delayed(const Duration(milliseconds: 350), () {
@@ -214,8 +216,8 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
                 fit: BoxFit.contain,
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Отличная игра!',
+              Text(
+                context.tr('greatGameShort'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFF124C89),
@@ -225,7 +227,7 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Ты поймал $_score ${_starWord(_score)}',
+                context.tr('caughtStarsScore', {'score': _score}),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Color(0xFF5C6F88),
@@ -245,8 +247,8 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
                     backgroundColor: const Color(0xFFF4A62A),
                     padding: const EdgeInsets.symmetric(vertical: 13),
                   ),
-                  child: const Text(
-                    'Сыграть ещё',
+                  child: Text(
+                    context.tr('playAgain'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
@@ -262,8 +264,8 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
                     Navigator.of(dialogContext).pop();
                     Navigator.of(context).pop();
                   },
-                  child: const Text(
-                    'В пещеру',
+                  child: Text(
+                    context.tr('toCave'),
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                     ),
@@ -308,14 +310,14 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
                   Row(
                     children: [
                       _CircleButton(
-                        tooltip: 'Назад',
+                        tooltip: context.tr('back'),
                         icon: Icons.arrow_back_rounded,
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Лови звёздочки',
+                          context.tr('catchStars'),
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 23,
@@ -331,7 +333,7 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
                         ),
                       ),
                       _CircleButton(
-                        tooltip: 'Начать заново',
+                        tooltip: context.tr('restart'),
                         icon: Icons.refresh_rounded,
                         onPressed: _resetGame,
                       ),
@@ -341,7 +343,7 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
                   _InfoPanel(
                     secondsLeft: _secondsLeft,
                     score: _score,
-                    message: _message,
+                    message: _message.isEmpty ? context.tr('catchOnlyStars') : _message,
                     starAsset: _starAsset,
                   ),
                   const SizedBox(height: 12),
@@ -396,8 +398,8 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
                                       Container(
                                         constraints: const BoxConstraints(maxWidth: 290),
                                         padding: const EdgeInsets.symmetric(horizontal: 18),
-                                        child: const Text(
-                                          'Нажимай на падающие звёздочки.\nОблачка и драконьи яйца не трогай!',
+                                        child: Text(
+                                          context.tr('catchStarsInstruction'),
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
                                             color: Colors.white,
@@ -431,8 +433,8 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
                                           Icons.play_arrow_rounded,
                                           size: 28,
                                         ),
-                                        label: const Text(
-                                          'Начать',
+                                        label: Text(
+                                          context.tr('start'),
                                           style: TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.w900,
@@ -451,8 +453,8 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _started
-                        ? '⭐ Лови звёздочки   •   ☁️ 🥚 Не нажимай'
-                        : 'Готов поймать как можно больше звёздочек?',
+                        ? context.tr('catchLegend')
+                        : context.tr('readyCatchStars'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: .94),
@@ -522,7 +524,7 @@ class _InfoPanel extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      '$secondsLeft сек.',
+                      context.tr('secondsLeft', {'seconds': secondsLeft}),
                       style: const TextStyle(
                         color: Color(0xFF274B73),
                         fontSize: 15,

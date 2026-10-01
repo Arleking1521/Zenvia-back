@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 
 import '../data/auth_repository.dart';
+import '../data/legal_repository.dart';
 import '../l10n/app_strings.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/magic_ui.dart';
 import 'parent_register_screen.dart';
+import 'legal_document_screen.dart';
 
 class ParentLoginScreen extends StatefulWidget {
   final AuthRepository authRepository;
+  final LegalRepository legalRepository;
   final VoidCallback onLoggedIn;
-  const ParentLoginScreen({super.key, required this.authRepository, required this.onLoggedIn});
+  const ParentLoginScreen({
+    super.key,
+    required this.authRepository,
+    required this.legalRepository,
+    required this.onLoggedIn,
+  });
   @override
   State<ParentLoginScreen> createState() => _ParentLoginScreenState();
 }
@@ -46,9 +54,25 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
 
   Future<void> _register() async {
     final success = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => ParentRegisterScreen(authRepository: widget.authRepository)),
+      MaterialPageRoute(
+        builder: (_) => ParentRegisterScreen(
+          authRepository: widget.authRepository,
+          legalRepository: widget.legalRepository,
+        ),
+      ),
     );
     if (success == true && mounted) widget.onLoggedIn();
+  }
+
+  Future<void> _openLegal(String type) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LegalDocumentScreen(
+          repository: widget.legalRepository,
+          type: type,
+        ),
+      ),
+    );
   }
 
   @override
@@ -87,6 +111,21 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
                           MagicPrimaryButton(label: _loading ? context.tr('loggingIn') : context.tr('login'), icon: Icons.login_rounded, onPressed: _loading ? null : _submit),
                           const SizedBox(height: 8),
                           TextButton(onPressed: _loading ? null : _register, child: Text(context.tr('createParentAccount'))),
+                          const Divider(height: 22),
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 4,
+                            children: [
+                              TextButton(
+                                onPressed: () => _openLegal('privacy'),
+                                child: Text(context.tr('privacyPolicy')),
+                              ),
+                              TextButton(
+                                onPressed: () => _openLegal('terms'),
+                                child: Text(context.tr('termsOfUse')),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),

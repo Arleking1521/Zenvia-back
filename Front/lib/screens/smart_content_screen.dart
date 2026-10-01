@@ -83,7 +83,7 @@ class _SmartContentScreenState extends State<SmartContentScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Не удалось воспроизвести аудио.')),
+          SnackBar(content: Text(context.tr('smartAudioPlayFailed'))),
         );
       }
     } finally {
@@ -209,7 +209,7 @@ class _SmartContentScreenState extends State<SmartContentScreen> {
                                 (type) => Padding(
                                   padding: const EdgeInsets.only(left: 8),
                                   child: _FilterChip(
-                                    label: '${type.emoji} ${type.title}',
+                                    label: '${type.emoji} ${_literaryTypeTitle(context, type)}',
                                     selected: _filter == type,
                                     onTap: () => setState(() => _filter = type),
                                   ),
@@ -261,6 +261,21 @@ class _SmartContentScreenState extends State<SmartContentScreen> {
   }
 }
 
+String _literaryTypeTitle(BuildContext context, LiteraryContentType type) {
+  switch (type) {
+    case LiteraryContentType.poem:
+      return context.tr('smartTypePoem');
+    case LiteraryContentType.proverb:
+      return context.tr('smartTypeProverb');
+    case LiteraryContentType.riddle:
+      return context.tr('smartTypeRiddle');
+    case LiteraryContentType.tongueTwister:
+      return context.tr('smartTypeTongueTwister');
+    case LiteraryContentType.other:
+      return context.tr('smartTypeOther');
+  }
+}
+
 class _ContentCard extends StatelessWidget {
   final LiteraryContentItem item;
   final bool loadingAudio;
@@ -305,8 +320,8 @@ class _ContentCard extends StatelessWidget {
                     ),
                     Text(
                       item.author == null
-                          ? item.type.title
-                          : '${item.type.title} · ${item.author}',
+                          ? _literaryTypeTitle(context, item.type)
+                          : '${_literaryTypeTitle(context, item.type)} · ${item.author}',
                       style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 11.5,

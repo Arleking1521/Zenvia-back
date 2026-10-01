@@ -21,9 +21,11 @@ class ApiConfig {
 
   static const String accountPrefix = 'api/account';
   static const String apiPrefix = 'api';
+  static const String legalPrefix = 'api/legal';
 
   static String account(String path) => _join(accountPrefix, path);
   static String api(String path) => _join(apiPrefix, path);
+  static String legal(String path) => _join(legalPrefix, path);
 
   static String _join(String prefix, String path) {
     final cleanPrefix = prefix.endsWith('/')

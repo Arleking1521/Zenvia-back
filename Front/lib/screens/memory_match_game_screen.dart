@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+
 class MemoryMatchGameScreen extends StatefulWidget {
   const MemoryMatchGameScreen({super.key});
 
@@ -168,8 +170,8 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
                 style: TextStyle(fontSize: 60),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'Все пары найдены!',
+              Text(
+                context.tr('allPairsFound'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFF124C89),
@@ -179,7 +181,7 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                '${difficulty.title} • ${difficulty.fieldLabel}',
+                '${context.tr(difficulty.titleKey)} • ${difficulty.fieldLabel}',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Color(0xFF5C6F88),
@@ -199,8 +201,8 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
                     backgroundColor: const Color(0xFF2F9BFF),
                     padding: const EdgeInsets.symmetric(vertical: 13),
                   ),
-                  child: const Text(
-                    'Сыграть ещё',
+                  child: Text(
+                    context.tr('playAgain'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
@@ -224,8 +226,8 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: const Text(
-                    'Выбрать уровень',
+                  child: Text(
+                    context.tr('chooseLevel'),
                     style: TextStyle(
                       fontWeight: FontWeight.w900,
                     ),
@@ -240,8 +242,8 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
                     Navigator.of(dialogContext).pop();
                     Navigator.of(context).pop();
                   },
-                  child: const Text(
-                    'В пещеру',
+                  child: Text(
+                    context.tr('toCave'),
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                     ),
@@ -335,7 +337,7 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${difficulty.title} • ${difficulty.fieldLabel}',
+                      '${context.tr(difficulty.titleKey)} • ${difficulty.fieldLabel}',
                       style: const TextStyle(
                         color: Color(0xFF274B73),
                         fontSize: 15,
@@ -344,7 +346,7 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
                     ),
                   ),
                   Text(
-                    '$_matchedPairs/$_pairCount пар',
+                    context.tr('pairsProgress', {'matched': _matchedPairs, 'total': _pairCount}),
                     style: const TextStyle(
                       color: Color(0xFF274B73),
                       fontSize: 14,
@@ -366,8 +368,8 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
                 ),
               ),
               const SizedBox(height: 9),
-              const Text(
-                'Открой две карточки и найди одинаковые картинки',
+              Text(
+                context.tr('memoryInstruction'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFF4F6280),
@@ -431,14 +433,14 @@ class _TopBar extends StatelessWidget {
     return Row(
       children: [
         _RoundHeaderButton(
-          tooltip: 'Назад',
+          tooltip: context.tr('back'),
           icon: Icons.arrow_back_rounded,
           onPressed: onBack,
         ),
         const SizedBox(width: 12),
-        const Expanded(
+        Expanded(
           child: Text(
-            'Найди пару',
+            context.tr('findPair'),
             style: TextStyle(
               color: Colors.white,
               fontSize: 24,
@@ -455,13 +457,13 @@ class _TopBar extends StatelessWidget {
         ),
         if (hasActiveGame) ...[
           _RoundHeaderButton(
-            tooltip: 'Выбрать уровень',
+            tooltip: context.tr('chooseLevel'),
             icon: Icons.grid_view_rounded,
             onPressed: onChangeDifficulty,
           ),
           const SizedBox(width: 8),
           _RoundHeaderButton(
-            tooltip: 'Перемешать',
+            tooltip: context.tr('shuffle'),
             icon: Icons.refresh_rounded,
             onPressed: onRestart,
           ),
@@ -517,10 +519,10 @@ class _DifficultyPicker extends StatelessWidget {
             color: Colors.white.withValues(alpha: .92),
             borderRadius: BorderRadius.circular(24),
           ),
-          child: const Column(
+          child: Column(
             children: [
               Text(
-                'Выбери размер поля',
+                context.tr('chooseBoardSize'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFF174F86),
@@ -528,9 +530,9 @@ class _DifficultyPicker extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              SizedBox(height: 5),
+              const SizedBox(height: 5),
               Text(
-                'Чем больше поле, тем больше пар нужно запомнить',
+                context.tr('biggerBoard'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFF5C6F88),
@@ -627,7 +629,7 @@ class _DifficultyTileState extends State<_DifficultyTile> {
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
-                  difficulty.title,
+                  context.tr(difficulty.titleKey),
                   maxLines: 1,
                   style: TextStyle(
                     color: difficulty.accent,
@@ -638,7 +640,7 @@ class _DifficultyTileState extends State<_DifficultyTile> {
               ),
               const SizedBox(height: 3),
               Text(
-                '${difficulty.fieldLabel} • ${difficulty.pairCount} ${_pairWord(difficulty.pairCount)}',
+                '${difficulty.fieldLabel} • ${difficulty.pairCount} ${context.tr(difficulty.pairCount >= 2 && difficulty.pairCount <= 4 ? 'pairPlural2' : 'pairs')}',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Color(0xFF5C6F88),
@@ -887,7 +889,7 @@ class _FlipMemoryCardState extends State<_FlipMemoryCard>
 
 enum _MemoryDifficulty {
   easy(
-    title: 'Лёгкий',
+    titleKey: 'easy',
     columns: 2,
     rows: 2,
     accent: Color(0xFF3FAE67),
@@ -895,7 +897,7 @@ enum _MemoryDifficulty {
     previewDark: Color(0xFF8DD59B),
   ),
   medium(
-    title: 'Средний',
+    titleKey: 'medium',
     columns: 3,
     rows: 2,
     accent: Color(0xFF2586D8),
@@ -903,7 +905,7 @@ enum _MemoryDifficulty {
     previewDark: Color(0xFF86C8F4),
   ),
   hard(
-    title: 'Сложный',
+    titleKey: 'hard',
     columns: 3,
     rows: 4,
     accent: Color(0xFFE38932),
@@ -911,7 +913,7 @@ enum _MemoryDifficulty {
     previewDark: Color(0xFFF1A75E),
   ),
   superHard(
-    title: 'Супер сложный',
+    titleKey: 'superHard',
     columns: 4,
     rows: 4,
     accent: Color(0xFF9A58C7),
@@ -919,7 +921,7 @@ enum _MemoryDifficulty {
     previewDark: Color(0xFFBE91E2),
   );
 
-  final String title;
+  final String titleKey;
   final int columns;
   final int rows;
   final Color accent;
@@ -927,7 +929,7 @@ enum _MemoryDifficulty {
   final Color previewDark;
 
   const _MemoryDifficulty({
-    required this.title,
+    required this.titleKey,
     required this.columns,
     required this.rows,
     required this.accent,

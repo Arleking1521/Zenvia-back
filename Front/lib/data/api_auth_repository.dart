@@ -64,6 +64,8 @@ class ApiAuthRepository implements AuthRepository {
     required String email,
     required String password,
     required String passwordConfirm,
+    required bool acceptPrivacyPolicy,
+    required bool acceptTermsOfUse,
   }) async {
     try {
       await client.dio.post(
@@ -73,6 +75,8 @@ class ApiAuthRepository implements AuthRepository {
           'email': email.trim().toLowerCase(),
           'password': password,
           'password_confirm': passwordConfirm,
+          'accept_privacy_policy': acceptPrivacyPolicy,
+          'accept_terms_of_use': acceptTermsOfUse,
         },
       );
 
@@ -148,6 +152,41 @@ class ApiAuthRepository implements AuthRepository {
     } on DioException catch (e) {
       throw AuthException(
         _messageFromDio(e, fallback: 'Не удалось изменить пароль.'),
+      );
+    }
+  }
+
+  @override
+  Future<void> deleteAccount({
+    required String password,
+  }) async {
+    try {
+      await client.dio.post(
+        ApiConfig.account('delete-account/'),
+        data: {
+          'password': password,
+          'confirm_deletion': true,
+        },
+      );
+
+      // После успешного удаления серверный User уже не существует.
+      // Локальные JWT и выбранный профиль ребёнка должны быть удалены сразу.
+      await client.tokenStorage.clear();
+      await client.childSessionStorage.clear();
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (e.response?.statusCode == 400 && data is Map) {
+        final passwordErrors = data['password'];
+        if (passwordErrors is List && passwordErrors.isNotEmpty) {
+          throw const AuthException('invalid_password');
+        }
+        final confirmationErrors = data['confirm_deletion'];
+        if (confirmationErrors is List && confirmationErrors.isNotEmpty) {
+          throw const AuthException('confirmation_required');
+        }
+      }
+      throw AuthException(
+        _messageFromDio(e, fallback: 'Не удалось удалить аккаунт.'),
       );
     }
   }
