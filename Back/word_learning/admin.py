@@ -55,6 +55,7 @@ def make_inactive(modeladmin, request, queryset):
 class LanguageAdmin(admin.ModelAdmin):
     list_display = (
         "id",
+        "position",
         "title",
         "code",
         "archive_link",
@@ -63,7 +64,8 @@ class LanguageAdmin(admin.ModelAdmin):
         "title",
         "code",
     )
-    ordering = ("id",)
+    ordering = ("position", "id")
+    list_editable = ("position",)
     list_per_page = 50
 
     fieldsets = (
@@ -71,6 +73,7 @@ class LanguageAdmin(admin.ModelAdmin):
             "Основная информация",
             {
                 "fields": (
+                    "position",
                     "title",
                     "code",
                     "icon",

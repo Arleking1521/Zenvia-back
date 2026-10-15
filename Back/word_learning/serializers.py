@@ -27,6 +27,7 @@ class LanguageSerializer(serializers.ModelSerializer):
             'title',
             'code',
             'icon',
+            'position',
         ]
 
 

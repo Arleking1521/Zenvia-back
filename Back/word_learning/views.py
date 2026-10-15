@@ -65,7 +65,7 @@ from .serializers import (
 )
 
 class LanguageViewSet(ReadOnlyModelViewSet):
-    queryset = Language.objects.all().order_by('id')
+    queryset = Language.objects.all().order_by('position', 'id')
     serializer_class = LanguageSerializer
     permission_classes = [AllowAny]
 

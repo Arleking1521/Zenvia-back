@@ -14,10 +14,12 @@ class Language(models.Model):
     title = models.CharField(max_length=128, verbose_name='Название')
     code = models.CharField(max_length=5, unique=True, verbose_name='Код')
     icon = models.FileField(upload_to='icons/archives/', verbose_name='Архив картинок для языка')
+    position = models.PositiveIntegerField(default=0, verbose_name='Порядковый номер')
 
     class Meta:
         verbose_name = 'Язык'
         verbose_name_plural = 'Языки'
+        ordering = ['position', 'id']
 
     def __str__(self):
         return f'{self.title} ({self.code})'
