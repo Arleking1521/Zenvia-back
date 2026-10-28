@@ -4,7 +4,6 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models, transaction
-from django.db.models import Q
 from django.utils import timezone
 
 from .services import extract_docx_payload
@@ -99,11 +98,6 @@ class LegalDocumentVersion(models.Model):
             models.UniqueConstraint(
                 fields=['document_type', 'version', 'language'],
                 name='legal_unique_type_version_language',
-            ),
-            models.UniqueConstraint(
-                fields=['document_type', 'language'],
-                condition=Q(status='published'),
-                name='legal_one_published_per_type_language',
             ),
         ]
 
