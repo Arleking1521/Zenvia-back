@@ -322,3 +322,12 @@ class SubscriptionAutoRenewTests(TestCase):
         other_subscription.refresh_from_db()
         self.assertTrue(other_subscription.auto_renew)
 
+
+
+class AccountDeletionWebPageTests(TestCase):
+    def test_delete_account_page_is_public(self):
+        response = self.client.get('/delete-account/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Удаление аккаунта')
+        self.assertContains(response, 'api/account/delete-account/')
+        self.assertNotContains(response, 'user_id')

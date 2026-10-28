@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Удаление аккаунта — Zenvia Kids</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --blue: #315fca;
+      --deep: #203866;
+      --text: #435470;
+      --muted: #71809a;
+      --danger: #c83d4b;
+      --danger-dark: #a62f3b;
+      --border: #dfe7f4;
+      --bg: #f4f8ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 15% 0%, #e8f7ff 0, transparent 32%),
+        radial-gradient(circle at 90% 15%, #eef0ff 0, transparent 34%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      line-height: 1.5;
+    }
+    main {
+      width: min(100%, 680px);
+      margin: 0 auto;
+      padding: 42px 18px 70px;
+    }
+    .brand {
+      color: var(--blue);
+      font-size: 22px;
+      font-weight: 900;
+      margin-bottom: 14px;
+    }
+    .card {
+      background: rgba(255,255,255,.97);
+      border: 1px solid rgba(220,230,246,.9);
+      border-radius: 28px;
+      padding: 30px;
+      box-shadow: 0 18px 54px rgba(42, 67, 111, .12);
+    }
+    h1 {
+      margin: 0 0 12px;
+      color: var(--deep);
+      font-size: clamp(28px, 5vw, 38px);
+      line-height: 1.15;
+    }
+    p { margin: 0 0 18px; }
+    .notice {
+      margin: 20px 0;
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: #fff4f5;
+      border: 1px solid #f4ccd1;
+      color: #7f3039;
+    }
+    .notice ul { margin: 8px 0 0 20px; padding: 0; }
+    label.field {
+      display: block;
+      margin: 16px 0 7px;
+      color: var(--deep);
+      font-weight: 750;
+    }
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      height: 50px;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      padding: 0 15px;
+      font-size: 16px;
+      outline: none;
+      background: #fff;
+      color: #253651;
+    }
+    input:focus {
+      border-color: #8a9fe3;
+      box-shadow: 0 0 0 3px rgba(82,105,206,.12);
+    }
+    .confirm {
+      display: flex;
+      gap: 11px;
+      align-items: flex-start;
+      margin: 22px 0;
+      font-size: 14px;
+      color: #596984;
+    }
+    .confirm input { width: 18px; height: 18px; margin-top: 2px; }
+    button {
+      width: 100%;
+      min-height: 52px;
+      border: 0;
+      border-radius: 16px;
+      padding: 12px 18px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    button:hover { background: var(--danger-dark); }
+    button:disabled { opacity: .55; cursor: default; }
+    .status {
+      display: none;
+      margin-top: 16px;
+      padding: 13px 15px;
+      border-radius: 14px;
+      font-size: 14px;
+    }
+    .status.error { display: block; background: #fff0f2; color: #9b2f3d; }
+    .status.info { display: block; background: #edf5ff; color: #2b5794; }
+    .success {
+      display: none;
+      text-align: center;
+      padding: 20px 0 4px;
+    }
+    .success .icon { font-size: 56px; margin-bottom: 10px; }
+    .success h2 { color: var(--deep); margin-bottom: 8px; }
+    .links {
+      margin-top: 22px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .links a { color: var(--blue); text-decoration: none; }
+    @media (max-width: 600px) {
+      main { padding: 20px 10px 40px; }
+      .card { border-radius: 22px; padding: 22px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">Zenvia Kids</div>
+    <div class="card">
+      <section id="deleteSection">
+        <h1>Удаление аккаунта</h1>
+        <p>
+          Эта страница предназначена для родителя, который больше не имеет
+          приложения на устройстве, но хочет удалить свой аккаунт Zenvia Kids.
+        </p>
+
+        <div class="notice">
+          После подтверждения будут безвозвратно удалены:
+          <ul>
+            <li>родительский аккаунт;</li>
+            <li>профили детей;</li>
+            <li>учебный прогресс и достижения;</li>
+            <li>связанные данные подписки и принятых документов.</li>
+          </ul>
+        </div>
+
+        <form id="deleteForm" novalidate>
+          <label class="field" for="email">Email родителя</label>
+          <input id="email" name="email" type="email" autocomplete="username" required>
+
+          <label class="field" for="password">Текущий пароль</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+          <label class="confirm">
+            <input id="confirmDeletion" type="checkbox" required>
+            <span>Я понимаю, что удаление необратимо, и подтверждаю удаление своего аккаунта и связанных данных.</span>
+          </label>
+
+          <button id="deleteButton" type="submit" disabled>Удалить мой аккаунт</button>
+          <div id="status" class="status" role="status" aria-live="polite"></div>
+        </form>
+      </section>
+
+      <section id="successSection" class="success">
+        <div class="icon">✓</div>
+        <h2>Аккаунт удалён</h2>
+        <p>Ваш родительский аккаунт и связанные с ним пользовательские данные удалены.</p>
+      </section>
+    </div>
+
+    <div class="links">
+      <a id="privacyLink" href="#">Политика конфиденциальности</a>
+      &nbsp;·&nbsp;
+      <a id="termsLink" href="#">Условия использования</a>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const form = document.getElementById('deleteForm');
+      const email = document.getElementById('email');
+      const password = document.getElementById('password');
+      const confirmDeletion = document.getElementById('confirmDeletion');
+      const button = document.getElementById('deleteButton');
+      const statusBox = document.getElementById('status');
+      const deleteSection = document.getElementById('deleteSection');
+      const successSection = document.getElementById('successSection');
+
+      const suffix = 'delete-account/';
+      const path = window.location.pathname;
+      let root = '/';
+      if (path.endsWith(suffix)) {
+        root = path.slice(0, -suffix.length);
+      } else if (path.endsWith('delete-account')) {
+        root = path.slice(0, -'delete-account'.length);
+      }
+      if (!root.endsWith('/')) root += '/';
+
+      const loginUrl = `${root}api/account/login/`;
+      const deleteUrl = `${root}api/account/delete-account/`;
+      document.getElementById('privacyLink').href = `${root}privacy/`;
+      document.getElementById('termsLink').href = `${root}terms/`;
+
+      const updateButton = () => {
+        button.disabled = !(
+          email.value.trim() &&
+          password.value &&
+          confirmDeletion.checked
+        );
+      };
+
+      [email, password, confirmDeletion].forEach((element) => {
+        element.addEventListener('input', updateButton);
+        element.addEventListener('change', updateButton);
+      });
+
+      const showStatus = (message, type = 'error') => {
+        statusBox.textContent = message;
+        statusBox.className = `status ${type}`;
+      };
+
+      const jsonOrEmpty = async (response) => {
+        try { return await response.json(); } catch (_) { return {}; }
+      };
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (button.disabled) return;
+
+        const parentEmail = email.value.trim().toLowerCase();
+        const currentPassword = password.value;
+
+        button.disabled = true;
+        showStatus('Проверяем данные родителя…', 'info');
+
+        try {
+          const loginResponse = await fetch(loginUrl, {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: parentEmail,
+              password: currentPassword,
+            }),
+          });
+
+          const loginData = await jsonOrEmpty(loginResponse);
+          const accessToken = loginData.access;
+          if (!loginResponse.ok || !accessToken) {
+            throw new Error('Неверный email или пароль. Проверьте данные и повторите попытку.');
+          }
+
+          showStatus('Удаляем аккаунт…', 'info');
+
+          const deleteResponse = await fetch(deleteUrl, {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              password: currentPassword,
+              confirm_deletion: true,
+            }),
+          });
+
+          if (!deleteResponse.ok) {
+            throw new Error('Не удалось удалить аккаунт. Повторите попытку или обратитесь в поддержку.');
+          }
+
+          // JWT нигде не сохраняется: после этого обработчика ссылка на него
+          // исчезает вместе с контекстом страницы.
+          password.value = '';
+          deleteSection.style.display = 'none';
+          successSection.style.display = 'block';
+        } catch (error) {
+          showStatus(
+            error instanceof Error
+              ? error.message
+              : 'Не удалось выполнить запрос. Проверьте интернет-соединение.',
+          );
+          updateButton();
+        }
+      });
+
+      updateButton();
+    })();
+  </script>
+</body>
+</html>
