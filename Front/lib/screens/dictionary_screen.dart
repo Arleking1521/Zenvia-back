@@ -235,7 +235,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                           Expanded(
                             child: Text(
                               context.tr('learnWithDragon'),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w900,
                                 fontSize: 18,

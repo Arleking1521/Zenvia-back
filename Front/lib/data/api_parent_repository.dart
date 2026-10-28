@@ -87,15 +87,23 @@ class ApiParentRepository implements ParentRepository {
   Future<List<RegistrationLanguage>> getLanguages() async {
     try {
       final response = await client.dio.get<dynamic>(ApiConfig.api('languages/'));
-      return _rows(response.data).map((row) {
+      final languages = _rows(response.data).map((row) {
         final icon = ApiConfig.absoluteMediaUrl(row['icon']?.toString());
         return RegistrationLanguage(
           id: _int(row['id']),
           title: row['title']?.toString() ?? '',
           code: row['code']?.toString() ?? '',
+          position: _int(row['position']),
           iconUrl: icon.isEmpty ? null : icon,
         );
       }).where((e) => e.id > 0).toList();
+
+      languages.sort((a, b) {
+        final byPosition = a.position.compareTo(b.position);
+        if (byPosition != 0) return byPosition;
+        return a.id.compareTo(b.id);
+      });
+      return languages;
     } on DioException catch (e) {
       throw ParentApiException(_message(e, 'Не удалось загрузить языки.'));
     }

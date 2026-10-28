@@ -90,15 +90,15 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
                   children: [
                     const ZenviaLogo(scale: .9),
                     const SizedBox(height: 14),
-                    DragonImage(asset: 'assets/images/dragon_hero.webp', height: 220),
+                    const DragonImage(asset: 'assets/images/dragon_hero.webp', height: 220),
                     const SizedBox(height: 14),
                     MagicCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(context.tr('parentLoginTitle'), textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.deepBlue)),
+                          Text(context.tr('parentLoginTitle'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.deepBlue)),
                           const SizedBox(height: 6),
-                          Text(context.tr('parentLoginSubtitle'), textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
+                          Text(context.tr('parentLoginSubtitle'), textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary)),
                           const SizedBox(height: 20),
                           AppTextField(controller: _email, label: 'Email', hint: 'parent@example.com', keyboardType: TextInputType.emailAddress),
                           const SizedBox(height: 12),

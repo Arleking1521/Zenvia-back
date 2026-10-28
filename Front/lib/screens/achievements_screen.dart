@@ -120,7 +120,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                   ? Center(
                                       child: Text(
                                         context.tr('noAchievements'),
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.w800,
                                           fontSize: 18,

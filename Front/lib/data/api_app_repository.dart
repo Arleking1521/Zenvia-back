@@ -42,10 +42,17 @@ class ApiAppRepository implements AppRepository {
           id: _asInt(row['id']),
           code: code,
           title: title,
+          position: _asInt(row['position']),
           iconUrl: icon.isEmpty ? null : icon,
         ),
       );
     }
+
+    result.sort((a, b) {
+      final byPosition = a.position.compareTo(b.position);
+      if (byPosition != 0) return byPosition;
+      return a.id.compareTo(b.id);
+    });
 
     return result;
   }

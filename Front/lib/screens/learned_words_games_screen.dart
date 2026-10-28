@@ -168,7 +168,7 @@ class _LearnedWordsGamesScreenState extends State<LearnedWordsGamesScreen> {
                           Text(
                             context.tr('learnedWordsLoadFailed'),
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
                               color: AppColors.deepBlue,
@@ -206,7 +206,7 @@ class _LearnedWordsGamesScreenState extends State<LearnedWordsGamesScreen> {
                           child: Text(
                             context.tr('gameCave'),
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 25,
                               fontWeight: FontWeight.w900,
                               color: AppColors.deepBlue,
@@ -226,7 +226,7 @@ class _LearnedWordsGamesScreenState extends State<LearnedWordsGamesScreen> {
                           Text(
                             context.tr('allLearnedWords'),
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 21,
                               fontWeight: FontWeight.w900,
@@ -286,7 +286,7 @@ class _LearnedWordsGamesScreenState extends State<LearnedWordsGamesScreen> {
                         child: Text(
                           context.tr('need2WordsGames'),
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             height: 1.35,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textSecondary,
@@ -618,7 +618,7 @@ class _MixedLearnedGameScreenState extends State<MixedLearnedGameScreen> {
         title: Text(
           context.tr('greatGame'),
           textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.w900),
+          style: const TextStyle(fontWeight: FontWeight.w900),
         ),
         content: Text(
           context.tr('correctAnswersCount', {'score': _score, 'total': total}),
@@ -763,7 +763,7 @@ class _MixedLearnedGameScreenState extends State<MixedLearnedGameScreen> {
               Text(
                 context.tr('matchPictureWord'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w700,
                 ),

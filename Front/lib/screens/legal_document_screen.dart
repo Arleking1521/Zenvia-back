@@ -148,7 +148,7 @@ class _LegalDocumentScreenState extends State<LegalDocumentScreen> {
                                   'version': document.version,
                                   'date': effectiveDate,
                                 }),
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: AppColors.textSecondary,
                             fontWeight: FontWeight.w600,
                           ),
@@ -157,7 +157,7 @@ class _LegalDocumentScreenState extends State<LegalDocumentScreen> {
                         if (document.html.isNotEmpty)
                           Html(
                             data: document.html,
-                            extensions: [
+                            extensions: const [
                               TableHtmlExtension(),
                             ],
                             style: {

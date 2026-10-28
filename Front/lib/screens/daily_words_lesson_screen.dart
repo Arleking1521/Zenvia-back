@@ -277,7 +277,7 @@ class _DailyWordsLessonScreenState extends State<DailyWordsLessonScreen> {
                       Text(
                         context.tr('allWordsOpened'),
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
+                        style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
                       ),
                       const SizedBox(height: 16),
                       FilledButton(

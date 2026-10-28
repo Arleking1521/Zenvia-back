@@ -64,12 +64,12 @@ class GameResultScreen extends StatelessWidget {
                         Text(
                           context.tr('greatWork'),
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: AppColors.deepBlue,
                             fontSize: 34,
                             height: 1.02,
                             fontWeight: FontWeight.w900,
-                            shadows: const [
+                            shadows: [
                               Shadow(
                                 color: Colors.white,
                                 blurRadius: 16,
@@ -164,7 +164,7 @@ class GameResultScreen extends StatelessWidget {
                                 children: [
                                   Text(
                                     context.tr('totalXp'),
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       color: AppColors.textSecondary,
                                       fontWeight: FontWeight.w700,
                                       fontSize: 16,
@@ -187,7 +187,7 @@ class GameResultScreen extends StatelessWidget {
                                   children: [
                                     Text(
                                       context.tr('xpToday'),
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         color: AppColors.textSecondary,
                                         fontWeight: FontWeight.w700,
                                         fontSize: 14,
@@ -247,7 +247,7 @@ class GameResultScreen extends StatelessWidget {
                                   Text(
                                     context.tr('dailyGoalDoneStar'),
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       color: Color(0xFF8C5A00),
                                       fontWeight: FontWeight.w900,
                                       fontSize: 13,

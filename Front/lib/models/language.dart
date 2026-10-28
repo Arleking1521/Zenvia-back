@@ -77,12 +77,14 @@ class LanguageOption {
   final int id;
   final String code;
   final String title;
+  final int position;
   final String? iconUrl;
 
   const LanguageOption({
     required this.id,
     required this.code,
     required this.title,
+    this.position = 0,
     this.iconUrl,
   });
 

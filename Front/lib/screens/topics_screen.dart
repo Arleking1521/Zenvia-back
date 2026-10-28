@@ -258,7 +258,7 @@ class _MapHeader extends StatelessWidget {
               child: Text(
                 context.tr('worldMap'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 25,
                   fontWeight: FontWeight.w900,
@@ -848,7 +848,7 @@ class _ErrorState extends StatelessWidget {
             Text(
               context.tr('worldMapLoadFailed'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppColors.deepBlue,
                 fontSize: 17,
                 fontWeight: FontWeight.w900,

@@ -522,7 +522,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                   Text(
                     context.tr('tapPictureHearAgain'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -639,7 +639,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                     Text(
                       context.tr('tapWordHearAgain'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -754,7 +754,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
         Text(
           context.tr('dragWordPicture'),
           textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textSecondary),
+          style: const TextStyle(color: AppColors.textSecondary),
         ),
         const SizedBox(height: 18),
         GridView.builder(
@@ -857,7 +857,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                                   textAlign: TextAlign.center,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.textMuted,
@@ -923,7 +923,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           Text(
             context.tr('words'),
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w800,
             ),

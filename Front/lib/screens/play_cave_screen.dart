@@ -68,7 +68,7 @@ class PlayCaveScreen extends StatelessWidget {
                 Text(
                   context.tr('playCaveTitle'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 30,
                     fontWeight: FontWeight.w900,
@@ -87,7 +87,7 @@ class PlayCaveScreen extends StatelessWidget {
                   child: Text(
                     context.tr('chooseGameFun'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -260,7 +260,7 @@ class _GameTileState extends State<_GameTile> {
                 ),
                 child: Text(
                   context.tr('play'),
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 17,
                     fontWeight: FontWeight.w900,

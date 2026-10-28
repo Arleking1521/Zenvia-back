@@ -380,7 +380,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                                   const SizedBox(height: 12),
                                   Text(
                                     context.tr('familyLearning'),
-                                    style: TextStyle(color: Colors.white, fontSize: 12.5),
+                                    style: const TextStyle(color: Colors.white, fontSize: 12.5),
                                   ),
                                 ],
                               ),

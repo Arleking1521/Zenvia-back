@@ -236,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     child: Text(
                                       context.tr('chooseLanguage'),
                                       textAlign: TextAlign.center,
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 25,
                                         fontWeight: FontWeight.w900,
@@ -634,7 +634,7 @@ class _EmptyLanguages extends StatelessWidget {
         child: Text(
           context.tr('noLanguages'),
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: AppColors.deepBlue,
             fontWeight: FontWeight.w800,
           ),
@@ -675,7 +675,7 @@ class _ApiErrorState extends StatelessWidget {
                     const SizedBox(height: 10),
                     Text(
                       context.tr('loadLanguagesFailed'),
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 18,
                       ),

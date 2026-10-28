@@ -85,7 +85,7 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
                 children: [
                   IconButton.filled(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back_rounded)),
                   const SizedBox(width: 10),
-                  Text(context.tr('newFamily'), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.deepBlue)),
+                  Text(context.tr('newFamily'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.deepBlue)),
                 ],
               ),
               const SizedBox(height: 16),
@@ -163,7 +163,7 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
                     Text(
                       context.tr('legalDocumentsAvailable'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 12,
                       ),

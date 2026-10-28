@@ -229,7 +229,7 @@ class _FireflySequenceGameScreenState
               Text(
                 context.tr('repeatedAll'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Color(0xFF124C89),
                   fontSize: 24,
                   fontWeight: FontWeight.w900,
@@ -259,7 +259,7 @@ class _FireflySequenceGameScreenState
                   ),
                   child: Text(
                     context.tr('playAgain'),
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
                     ),
@@ -276,7 +276,7 @@ class _FireflySequenceGameScreenState
                   },
                   child: Text(
                     context.tr('chooseDifficulty'),
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -292,7 +292,7 @@ class _FireflySequenceGameScreenState
                   },
                   child: Text(
                     context.tr('toCave'),
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -507,7 +507,7 @@ class _FireflySequenceGameScreenState
                             ),
                             label: Text(
                               context.tr('start'),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
                               ),
@@ -639,7 +639,7 @@ class _TopBar extends StatelessWidget {
         Expanded(
           child: Text(
             context.tr('repeatFireflies'),
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 21,
               fontWeight: FontWeight.w900,
@@ -694,7 +694,7 @@ class _DifficultyPicker extends StatelessWidget {
               Text(
                 context.tr('chooseDifficultyTitle'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Color(0xFF174F86),
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
@@ -704,7 +704,7 @@ class _DifficultyPicker extends StatelessWidget {
               Text(
                 context.tr('moreFirefliesHarder'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Color(0xFF5C6F88),
                   fontSize: 13,
                   fontWeight: FontWeight.w600,

@@ -174,7 +174,7 @@ class _ChildSettingsScreenState extends State<ChildSettingsScreen> {
               Text(
                 context.tr('volumeSavedHint'),
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
               const SizedBox(height: 20),
               OutlinedButton.icon(
@@ -186,7 +186,7 @@ class _ChildSettingsScreenState extends State<ChildSettingsScreen> {
               Text(
                 context.tr('childSettingsProtected'),
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
             ],
           );
@@ -291,9 +291,9 @@ class _VolumeSettingCard extends StatelessWidget {
             label: '$percent%',
             onChanged: enabled ? onChanged : null,
           ),
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
+            children: [
               Text('0%', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
               Text('100%', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
             ],

@@ -219,7 +219,7 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
               Text(
                 context.tr('greatGameShort'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Color(0xFF124C89),
                   fontSize: 24,
                   fontWeight: FontWeight.w900,
@@ -249,7 +249,7 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
                   ),
                   child: Text(
                     context.tr('playAgain'),
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
                     ),
@@ -266,7 +266,7 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
                   },
                   child: Text(
                     context.tr('toCave'),
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -318,7 +318,7 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
                       Expanded(
                         child: Text(
                           context.tr('catchStars'),
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 23,
                             fontWeight: FontWeight.w900,
@@ -401,7 +401,7 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
                                         child: Text(
                                           context.tr('catchStarsInstruction'),
                                           textAlign: TextAlign.center,
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 17,
                                             height: 1.3,
@@ -435,7 +435,7 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
                                         ),
                                         label: Text(
                                           context.tr('start'),
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.w900,
                                           ),
@@ -579,7 +579,6 @@ class _FallingObjectWidget extends StatelessWidget {
   final String eggAsset;
 
   const _FallingObjectWidget({
-    super.key,
     required this.object,
     required this.onTap,
     required this.starAsset,

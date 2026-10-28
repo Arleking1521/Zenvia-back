@@ -249,7 +249,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                               Expanded(
                                 child: Text(
                                   context.tr('topicProgress'),
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: AppColors.deepBlue,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w900,
@@ -298,7 +298,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                     const SizedBox(height: 18),
                     Text(
                       context.tr('topicDictionary'),
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppColors.deepBlue,
                         fontSize: 21,
                         fontWeight: FontWeight.w900,
@@ -309,7 +309,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                     const SizedBox(height: 22),
                     Text(
                       context.tr('practiceInGames'),
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppColors.deepBlue,
                         fontSize: 21,
                         fontWeight: FontWeight.w900,
@@ -434,7 +434,7 @@ class _TopicHero extends StatelessWidget {
               children: [
                 Text(
                   context.tr('topicIsland'),
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
@@ -636,7 +636,7 @@ class _DictionaryCard extends StatelessWidget {
                   children: [
                     Text(
                       context.tr('dictionary'),
-                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
+                      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
                     ),
                     const SizedBox(height: 4),
                     Text(

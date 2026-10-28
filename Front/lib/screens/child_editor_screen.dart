@@ -104,7 +104,7 @@ class _ChildEditorScreenState extends State<ChildEditorScreen> {
             children: [
               AppTextField(controller: _name, label: context.tr('childName'), hint: 'Карим'),
               const SizedBox(height: 20),
-              Text(context.tr('baseInterfaceLanguage'), style: TextStyle(fontWeight: FontWeight.w700)),
+              Text(context.tr('baseInterfaceLanguage'), style: const TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
@@ -119,7 +119,7 @@ class _ChildEditorScreenState extends State<ChildEditorScreen> {
                 }).toList(),
               ),
               const SizedBox(height: 20),
-              Text(context.tr('avatar'), style: TextStyle(fontWeight: FontWeight.w700)),
+              Text(context.tr('avatar'), style: const TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
               GridView.builder(
                 shrinkWrap: true,
@@ -157,7 +157,7 @@ class _ChildEditorScreenState extends State<ChildEditorScreen> {
                 },
               ),
               if (_avatars.isEmpty)
-                Text(context.tr('noAvatarsAdmin'), style: TextStyle(color: Colors.red)),
+                Text(context.tr('noAvatarsAdmin'), style: const TextStyle(color: Colors.red)),
               if (_error != null) ...[
                 const SizedBox(height: 12),
                 Text(_error!, style: const TextStyle(color: Colors.red)),

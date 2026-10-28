@@ -118,7 +118,7 @@ class _SmartContentScreenState extends State<SmartContentScreen> {
                           Text(
                             context.tr('smartLoadFailed'),
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
                               color: AppColors.deepBlue,
@@ -152,7 +152,7 @@ class _SmartContentScreenState extends State<SmartContentScreen> {
                           child: Text(
                             context.tr('knowledgeCave'),
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 25,
                               fontWeight: FontWeight.w900,
                               color: AppColors.deepBlue,
@@ -176,7 +176,7 @@ class _SmartContentScreenState extends State<SmartContentScreen> {
                           Text(
                             context.tr('wantBeSmart'),
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 23,
                               fontWeight: FontWeight.w900,
