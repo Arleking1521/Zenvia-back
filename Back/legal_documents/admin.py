@@ -13,6 +13,7 @@ class LegalDocumentVersionAdmin(admin.ModelAdmin):
         'document_type',
         'version',
         'language',
+        'file_format',
         'status',
         'effective_from',
         'published_at',
@@ -28,11 +29,13 @@ class LegalDocumentVersionAdmin(admin.ModelAdmin):
         'created_at',
         'published_at',
         'preview_link',
+        'file_format',
     )
     fieldsets = (
         ('Документ', {
             'fields': (
                 'document_type', 'version', 'language', 'title', 'source_file',
+                'file_format',
             ),
         }),
         ('Публикация', {
@@ -59,7 +62,7 @@ class LegalDocumentVersionAdmin(admin.ModelAdmin):
         if obj and obj.status == LegalDocumentVersion.STATUS_PUBLISHED:
             return [
                 'document_type', 'version', 'language', 'title', 'source_file',
-                'status', 'effective_from', 'requires_reacceptance',
+                'file_format', 'status', 'effective_from', 'requires_reacceptance',
                 'source_sha256', 'extracted_html', 'extracted_text',
                 'created_at', 'published_at', 'preview_link',
             ]
@@ -87,6 +90,12 @@ class LegalDocumentVersionAdmin(admin.ModelAdmin):
                 'is_admin_preview': True,
             },
         )
+
+    @admin.display(description='Формат')
+    def file_format(self, obj):
+        if obj is None:
+            return '—'
+        return (obj.source_format or '—').upper()
 
     @admin.display(description='Предпросмотр')
     def preview_link(self, obj):

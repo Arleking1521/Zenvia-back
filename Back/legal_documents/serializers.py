@@ -8,6 +8,7 @@ class LegalDocumentSerializer(serializers.ModelSerializer):
     html = serializers.CharField(source='extracted_html', read_only=True)
     plain_text = serializers.CharField(source='extracted_text', read_only=True)
     source_file_url = serializers.SerializerMethodField()
+    source_format = serializers.CharField(read_only=True)
 
     class Meta:
         model = LegalDocumentVersion
@@ -23,6 +24,7 @@ class LegalDocumentSerializer(serializers.ModelSerializer):
             'published_at',
             'requires_reacceptance',
             'source_sha256',
+            'source_format',
             'source_file_url',
         )
 

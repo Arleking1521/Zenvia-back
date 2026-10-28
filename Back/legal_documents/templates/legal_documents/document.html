@@ -14,7 +14,7 @@
       line-height: 1.65;
     }
     main {
-      max-width: 860px;
+      max-width: 1000px;
       margin: 0 auto;
       padding: 32px 20px 64px;
     }
@@ -31,6 +31,15 @@
     a { color: #5065d7; }
     table { width: 100%; border-collapse: collapse; overflow-x: auto; display: block; }
     th, td { border: 1px solid #dfe6f2; padding: 8px 10px; text-align: left; }
+    .pdf-frame {
+      width: 100%;
+      height: min(78vh, 1000px);
+      min-height: 620px;
+      border: 1px solid #dfe6f2;
+      border-radius: 14px;
+      background: #f7f9fd;
+    }
+    .pdf-fallback { margin-top: 12px; font-size: 14px; }
     .notice {
       padding: 18px;
       border-radius: 16px;
@@ -40,6 +49,7 @@
     @media (max-width: 600px) {
       main { padding: 16px 10px 36px; }
       .card { border-radius: 18px; padding: 20px 16px; }
+      .pdf-frame { min-height: 72vh; height: 72vh; }
     }
   </style>
 </head>
@@ -52,9 +62,22 @@
         <div class="meta">
           Версия {{ document.version }}
           {% if document.effective_from %} · действует с {{ document.effective_from|date:"d.m.Y" }}{% endif %}
+          · {{ document.source_format|upper }}
           {% if is_admin_preview %} · предпросмотр черновика{% endif %}
         </div>
-        <article>{{ document.extracted_html|safe }}</article>
+        {% if document.source_format == 'pdf' %}
+          <iframe
+            class="pdf-frame"
+            src="{{ document.source_file.url }}#view=FitH"
+            title="{{ document.title }}"
+          ></iframe>
+          <div class="pdf-fallback">
+            Если PDF не открылся встроенно,
+            <a href="{{ document.source_file.url }}" target="_blank" rel="noopener">откройте оригинальный файл</a>.
+          </div>
+        {% else %}
+          <article>{{ document.extracted_html|safe }}</article>
+        {% endif %}
       {% else %}
         <h1>{{ fallback_title }}</h1>
         <div class="notice">Документ пока не опубликован.</div>

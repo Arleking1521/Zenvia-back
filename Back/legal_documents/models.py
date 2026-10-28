@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models, transaction
 from django.utils import timezone
 
-from .services import extract_docx_payload
+from .services import extract_legal_payload
 
 
 class LegalDocumentVersion(models.Model):
@@ -48,8 +50,8 @@ class LegalDocumentVersion(models.Model):
     title = models.CharField(max_length=255, verbose_name='Заголовок')
     source_file = models.FileField(
         upload_to='legal_documents/%Y/%m/',
-        validators=[FileExtensionValidator(['docx'])],
-        verbose_name='Исходный DOCX',
+        validators=[FileExtensionValidator(['docx', 'pdf'])],
+        verbose_name='Исходный документ (PDF/DOCX)',
     )
     source_sha256 = models.CharField(
         max_length=64,
@@ -108,10 +110,18 @@ class LegalDocumentVersion(models.Model):
     def is_effective(self) -> bool:
         return self.effective_from is None or self.effective_from <= timezone.now()
 
+    @property
+    def source_format(self) -> str:
+        if not self.source_file:
+            return ''
+        return Path(self.source_file.name or '').suffix.lower().lstrip('.')
+
     def clean(self):
         super().clean()
         if self.status == self.STATUS_PUBLISHED and not self.source_file:
-            raise ValidationError({'source_file': 'Для публикации требуется DOCX-файл.'})
+            raise ValidationError({
+                'source_file': 'Для публикации требуется PDF- или DOCX-файл.'
+            })
 
         if self.pk:
             original = type(self).objects.filter(pk=self.pk).first()
@@ -134,7 +144,10 @@ class LegalDocumentVersion(models.Model):
     def _refresh_extracted_content(self):
         if not self.source_file:
             return
-        html, text, sha256 = extract_docx_payload(self.source_file)
+        try:
+            html, text, sha256 = extract_legal_payload(self.source_file)
+        except (ValueError, OSError) as exc:
+            raise ValidationError({'source_file': str(exc)}) from exc
         self.extracted_html = html
         self.extracted_text = text
         self.source_sha256 = sha256
@@ -142,7 +155,7 @@ class LegalDocumentVersion(models.Model):
     def save(self, *args, **kwargs):
         file_is_new = bool(self.source_file) and (
             not getattr(self.source_file, '_committed', True)
-            or not self.extracted_html
+            or not self.extracted_text
             or not self.source_sha256
         )
         if file_is_new:
