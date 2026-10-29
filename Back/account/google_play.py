@@ -313,8 +313,16 @@ def refresh_parent_google_subscription(parent, *, max_age_seconds=300):
     if subscription is None:
         return None
 
-    if subscription.google_last_verified_at:
-        age = (timezone.now() - subscription.google_last_verified_at).total_seconds()
+    # Cache a recent Google response only while the locally known paid period
+    # has not ended. Once ends_at is reached, always re-query Google Play even
+    # if the previous verification was only seconds ago. This is especially
+    # important for short license-tester subscription periods.
+    now = timezone.now()
+    local_period_still_valid = (
+        subscription.ends_at is None or subscription.ends_at > now
+    )
+    if subscription.google_last_verified_at and local_period_still_valid:
+        age = (now - subscription.google_last_verified_at).total_seconds()
         if age < max_age_seconds:
             return subscription
 

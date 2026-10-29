@@ -597,6 +597,12 @@ class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        # Keep the local database in sync when the parent opens the dashboard.
+        # The refresh function has a short cache, but bypasses it once ends_at
+        # has been reached, so an expired Google Play subscription is updated
+        # promptly instead of remaining STATUS_ACTIVE in the database.
+        refresh_parent_google_subscription(request.user)
+
         children = (
             ChildProfile.objects
             .filter(parent=request.user, is_active=True)
