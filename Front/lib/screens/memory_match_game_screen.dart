@@ -654,11 +654,6 @@ class _DifficultyTileState extends State<_DifficultyTile> {
       ),
     );
   }
-
-  String _pairWord(int count) {
-    if (count >= 2 && count <= 4) return 'пары';
-    return 'пар';
-  }
 }
 
 class _MiniFieldPreview extends StatelessWidget {

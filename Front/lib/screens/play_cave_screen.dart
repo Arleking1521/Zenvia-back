@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 
-import '../l10n/app_strings.dart';
-
 import 'catch_stars_game_screen.dart';
+import 'count_objects_game_screen.dart';
+import 'connect_dots_game_screen.dart';
 import 'firefly_sequence_game_screen.dart';
 import 'memory_match_game_screen.dart';
+import 'puzzle_game_screen.dart';
 
 class PlayCaveScreen extends StatelessWidget {
   const PlayCaveScreen({super.key});
 
-  static const String _fireflyAsset = 'assets/images/firefly.png';
-  static const String _starAsset = 'assets/images/star_cute.png';
-  static const String _cloudAsset = 'assets/images/cloud_cute.png';
-  static const String _eggAsset = 'assets/images/dragon_egg_cute.png';
+  static const String _fireflyAsset = 'assets/images/games/firefly/firefly.png';
+  static const String _starAsset = 'assets/images/games/catch_stars/star.png';
+  static const String _cloudAsset = 'assets/images/games/catch_stars/cloud.png';
+  static const String _eggAsset = 'assets/images/games/catch_stars/dragon_egg.png';
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +49,7 @@ class PlayCaveScreen extends StatelessWidget {
                         color: Colors.white.withValues(alpha: .24),
                         shape: const CircleBorder(),
                         child: IconButton(
-                          tooltip: context.tr('back'),
+                          tooltip: 'Назад',
                           onPressed: () => Navigator.of(context).pop(),
                           icon: const Icon(
                             Icons.arrow_back_rounded,
@@ -57,18 +58,15 @@ class PlayCaveScreen extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      const Text(
-                        '🎮',
-                        style: TextStyle(fontSize: 30),
-                      ),
+                      const Text('🎮', style: TextStyle(fontSize: 30)),
                     ],
                   ),
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  context.tr('playCaveTitle'),
+                const Text(
+                  'Хочу играть',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: 30,
                     fontWeight: FontWeight.w900,
@@ -82,12 +80,12 @@ class PlayCaveScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
                   child: Text(
-                    context.tr('chooseGameFun'),
+                    'Выбирай игру и просто веселись!',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -104,8 +102,9 @@ class PlayCaveScreen extends StatelessWidget {
                         child: Column(
                           children: [
                             _GameTile(
-                              title: context.tr('findPair'),
-                              subtitle: context.tr('findPairHint'),
+                              title: 'Найди пару',
+                              subtitle:
+                                  'Переворачивай карточки и находи одинаковые картинки',
                               preview: const _MiniMemoryPreview(),
                               buttonColor: const Color(0xFF2F9BFF),
                               onTap: () {
@@ -119,8 +118,9 @@ class PlayCaveScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 18),
                             _GameTile(
-                              title: context.tr('repeatFireflies'),
-                              subtitle: context.tr('repeatFirefliesHint'),
+                              title: 'Повтори за светлячками',
+                              subtitle:
+                                  'Запоминай, кто загорелся, и повторяй последовательность',
                               preview: const _MiniFireflyPreview(
                                 assetPath: _fireflyAsset,
                               ),
@@ -136,8 +136,9 @@ class PlayCaveScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 18),
                             _GameTile(
-                              title: context.tr('catchStars'),
-                              subtitle: context.tr('catchStarsHint'),
+                              title: 'Лови звёздочки',
+                              subtitle:
+                                  'Лови падающие звёздочки и не трогай облачка и яйца',
                               preview: const _MiniCatchStarsPreview(
                                 starAsset: _starAsset,
                                 cloudAsset: _cloudAsset,
@@ -149,6 +150,53 @@ class PlayCaveScreen extends StatelessWidget {
                                   MaterialPageRoute<void>(
                                     builder: (_) =>
                                         const CatchStarsGameScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 18),
+                            _GameTile(
+                              title: 'Собери пазл',
+                              subtitle:
+                                  'Перетаскивай детали и собери целую картинку',
+                              preview: const _MiniPuzzlePreview(),
+                              buttonColor: const Color(0xFF8C63D7),
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const PuzzleGameScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 18),
+                            _GameTile(
+                              title: 'Сколько предметов?',
+                              subtitle:
+                                  'Посчитай начинку и перетащи правильное число к пицце',
+                              preview: const _MiniCountObjectsPreview(),
+                              buttonColor: const Color(0xFFE76F51),
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) =>
+                                        const CountObjectsGameScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 18),
+                            _GameTile(
+                              title: 'Соедини точки',
+                              subtitle:
+                                  'Нажимай точки по порядку и открой спрятанную картинку',
+                              preview: const _MiniConnectDotsPreview(),
+                              buttonColor: const Color(0xFF4E7DDE),
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) =>
+                                        const ConnectDotsGameScreen(),
                                   ),
                                 );
                               },
@@ -208,10 +256,7 @@ class _GameTileState extends State<_GameTile> {
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: .94),
             borderRadius: BorderRadius.circular(30),
-            border: Border.all(
-              color: Colors.white,
-              width: 3,
-            ),
+            border: Border.all(color: Colors.white, width: 3),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x33000000),
@@ -258,9 +303,9 @@ class _GameTileState extends State<_GameTile> {
                   color: widget.buttonColor,
                   borderRadius: BorderRadius.circular(22),
                 ),
-                child: Text(
-                  context.tr('play'),
-                  style: const TextStyle(
+                child: const Text(
+                  'Играть',
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: 17,
                     fontWeight: FontWeight.w900,
@@ -288,10 +333,7 @@ class _MiniMemoryPreview extends StatelessWidget {
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: Colors.white,
-            width: 3,
-          ),
+          border: Border.all(color: Colors.white, width: 3),
           boxShadow: const [
             BoxShadow(
               color: Color(0x22000000),
@@ -300,10 +342,7 @@ class _MiniMemoryPreview extends StatelessWidget {
             ),
           ],
         ),
-        child: Text(
-          value,
-          style: const TextStyle(fontSize: 38),
-        ),
+        child: Text(value, style: const TextStyle(fontSize: 38)),
       );
     }
 
@@ -353,56 +392,36 @@ class _MiniMemoryPreview extends StatelessWidget {
 class _MiniFireflyPreview extends StatelessWidget {
   final String assetPath;
 
-  const _MiniFireflyPreview({
-    required this.assetPath,
-  });
+  const _MiniFireflyPreview({required this.assetPath});
 
   @override
   Widget build(BuildContext context) {
-    Widget previewFirefly({
-      required double size,
-      required Alignment alignment,
-      required bool glowing,
-      required double rotation,
-    }) {
+    Widget fly(double size, Alignment alignment, bool glow) {
       return Align(
         alignment: alignment,
-        child: Transform.rotate(
-          angle: rotation,
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (glow)
                 Container(
-                  width: glowing ? size * 1.05 : size * .78,
-                  height: glowing ? size * 1.05 : size * .78,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: glowing
-                        ? const Color(0x66FFF36A)
-                        : const Color(0x22D5FF80),
-                    boxShadow: glowing
-                        ? const [
-                            BoxShadow(
-                              color: Color(0xAAFFF36A),
-                              blurRadius: 22,
-                              spreadRadius: 5,
-                            ),
-                          ]
-                        : const [],
-                  ),
-                ),
-                Image.asset(
-                  assetPath,
                   width: size,
                   height: size,
-                  fit: BoxFit.contain,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0xAAFFF36A),
+                        blurRadius: 22,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              Image.asset(assetPath, fit: BoxFit.contain),
+            ],
           ),
         ),
       );
@@ -411,43 +430,18 @@ class _MiniFireflyPreview extends StatelessWidget {
     return Container(
       height: 112,
       width: 210,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFF123B50),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Stack(
         children: [
-          previewFirefly(
-            size: 42,
-            alignment: const Alignment(-.92, -.65),
-            glowing: false,
-            rotation: -.18,
-          ),
-          previewFirefly(
-            size: 56,
-            alignment: const Alignment(.02, -.82),
-            glowing: true,
-            rotation: 0,
-          ),
-          previewFirefly(
-            size: 44,
-            alignment: const Alignment(.92, -.50),
-            glowing: false,
-            rotation: .15,
-          ),
-          previewFirefly(
-            size: 40,
-            alignment: const Alignment(-.68, .78),
-            glowing: false,
-            rotation: -.08,
-          ),
-          previewFirefly(
-            size: 43,
-            alignment: const Alignment(.70, .72),
-            glowing: false,
-            rotation: .09,
-          ),
+          fly(42, const Alignment(-.92, -.65), false),
+          fly(56, const Alignment(.02, -.82), true),
+          fly(44, const Alignment(.92, -.50), false),
+          fly(40, const Alignment(-.68, .78), false),
+          fly(43, const Alignment(.70, .72), false),
         ],
       ),
     );
@@ -467,150 +461,64 @@ class _MiniCatchStarsPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget fallingGlow({
-      required double size,
-      required Color color,
-      required Alignment alignment,
-      required Widget child,
-      required double rotation,
-    }) {
-      return Align(
-        alignment: alignment,
-        child: Transform.rotate(
-          angle: rotation,
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: size * .72,
-                  height: size * .72,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: color,
-                        blurRadius: 16,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                ),
-                child,
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    Widget streak(double height, Alignment alignment) {
-      return Align(
-        alignment: alignment,
-        child: Container(
-          width: 5,
-          height: height,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.white.withValues(alpha: 0),
-                Colors.white.withValues(alpha: .28),
-                Colors.white.withValues(alpha: .02),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
     return Container(
       height: 118,
       width: 220,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF203B74),
-            Color(0xFF253668),
-          ],
+          colors: [Color(0xFF203B74), Color(0xFF253668)],
         ),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Stack(
         children: [
-          streak(34, const Alignment(-.58, -.66)),
-          streak(30, const Alignment(.06, -.60)),
-          streak(32, const Alignment(.68, -.52)),
-          fallingGlow(
-            size: 46,
-            color: const Color(0x55FFE16A),
-            alignment: const Alignment(-.58, -.12),
-            rotation: -.10,
+          Align(
+            alignment: const Alignment(-.55, -.35),
             child: Image.asset(
               starAsset,
-              width: 40,
-              height: 40,
-              fit: BoxFit.contain,
-            ),
-          ),
-          fallingGlow(
-            size: 58,
-            color: const Color(0x77FFE16A),
-            alignment: const Alignment(.02, .14),
-            rotation: .08,
-            child: Image.asset(
-              starAsset,
-              width: 50,
-              height: 50,
+              width: 48,
+              height: 48,
               fit: BoxFit.contain,
             ),
           ),
           Align(
-            alignment: const Alignment(.70, -.20),
-            child: Transform.rotate(
-              angle: .08,
-              child: Image.asset(
-                cloudAsset,
-                width: 42,
-                height: 42,
-                fit: BoxFit.contain,
-              ),
+            alignment: const Alignment(.05, .38),
+            child: Image.asset(
+              starAsset,
+              width: 58,
+              height: 58,
+              fit: BoxFit.contain,
             ),
           ),
           Align(
-            alignment: const Alignment(.74, .56),
-            child: Transform.rotate(
-              angle: .12,
-              child: Image.asset(
-                eggAsset,
-                width: 34,
-                height: 34,
-                fit: BoxFit.contain,
-              ),
+            alignment: const Alignment(.72, -.35),
+            child: Image.asset(
+              cloudAsset,
+              width: 44,
+              height: 44,
+              fit: BoxFit.contain,
             ),
           ),
           Align(
-            alignment: const Alignment(-.80, .66),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Text(
-                '+1',
-                style: TextStyle(
-                  color: Color(0xFFFFE89A),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                ),
+            alignment: const Alignment(.73, .62),
+            child: Image.asset(
+              eggAsset,
+              width: 35,
+              height: 35,
+              fit: BoxFit.contain,
+            ),
+          ),
+          const Align(
+            alignment: Alignment(-.82, .70),
+            child: Text(
+              '+1',
+              style: TextStyle(
+                color: Color(0xFFFFE89A),
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),
@@ -618,4 +526,356 @@ class _MiniCatchStarsPreview extends StatelessWidget {
       ),
     );
   }
+}
+
+class _MiniPuzzlePreview extends StatelessWidget {
+  const _MiniPuzzlePreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 118,
+      width: 220,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF553C8B),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Center(
+        child: SizedBox(
+          width: 146,
+          height: 92,
+          child: Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.asset(
+                  'assets/images/dragon_hero.webp',
+                  width: 146,
+                  height: 92,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _PuzzleGridPainter(),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Transform.rotate(
+                  angle: .12,
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB596F1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white, width: 2),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x44000000),
+                          blurRadius: 7,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.extension_rounded,
+                      color: Colors.white,
+                      size: 27,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PuzzleGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: .85)
+      ..strokeWidth = 2;
+
+    canvas.drawLine(
+      Offset(size.width / 2, 0),
+      Offset(size.width / 2, size.height),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(0, size.height / 2),
+      Offset(size.width, size.height / 2),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+
+class _MiniCountObjectsPreview extends StatelessWidget {
+  const _MiniCountObjectsPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 118,
+      width: 220,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFFFE7C2),
+            Color(0xFFFFCFA8),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Center(
+              child: SizedBox(
+                width: 90,
+                height: 90,
+                child: CustomPaint(
+                  painter: _MiniPizzaPainter(),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Сколько?',
+                style: TextStyle(
+                  color: Color(0xFF8A4F2A),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Row(
+                children: [
+                  _MiniNumberChip(value: '3'),
+                  const SizedBox(width: 5),
+                  _MiniNumberChip(value: '5', highlighted: true),
+                  const SizedBox(width: 5),
+                  _MiniNumberChip(value: '7'),
+                ],
+              ),
+              const SizedBox(height: 5),
+              const Icon(
+                Icons.touch_app_rounded,
+                color: Color(0xFFE76F51),
+                size: 20,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniNumberChip extends StatelessWidget {
+  final String value;
+  final bool highlighted;
+
+  const _MiniNumberChip({
+    required this.value,
+    this.highlighted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 27,
+      height: 31,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: highlighted ? const Color(0xFFE76F51) : Colors.white,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(
+          color: highlighted
+              ? const Color(0xFFE76F51)
+              : const Color(0xFFF0B58F),
+          width: 2,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        value,
+        style: TextStyle(
+          color: highlighted ? Colors.white : const Color(0xFF9A5A34),
+          fontSize: 15,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniPizzaPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.shortestSide / 2;
+
+    canvas.drawCircle(
+      center + const Offset(0, 3),
+      radius * .92,
+      Paint()..color = const Color(0x22000000),
+    );
+    canvas.drawCircle(
+      center,
+      radius * .92,
+      Paint()..color = const Color(0xFFD88B3D),
+    );
+    canvas.drawCircle(
+      center,
+      radius * .78,
+      Paint()..color = const Color(0xFFFFD56A),
+    );
+    canvas.drawCircle(
+      center,
+      radius * .69,
+      Paint()..color = const Color(0xFFFFE28A),
+    );
+
+    const pepperoni = [
+      Offset(.33, .31),
+      Offset(.61, .28),
+      Offset(.49, .51),
+      Offset(.28, .63),
+      Offset(.68, .66),
+    ];
+
+    for (final p in pepperoni) {
+      final c = Offset(size.width * p.dx, size.height * p.dy);
+      canvas.drawCircle(
+        c,
+        radius * .105,
+        Paint()..color = const Color(0xFFD94A3A),
+      );
+      canvas.drawCircle(
+        c + Offset(radius * .025, -radius * .02),
+        radius * .025,
+        Paint()..color = const Color(0xFF9D2F2B),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+
+class _MiniConnectDotsPreview extends StatelessWidget {
+  const _MiniConnectDotsPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 210,
+      height: 112,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFEFF5FF),
+            Color(0xFFDCE9FF),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: const CustomPaint(
+        painter: _MiniConnectDotsPainter(),
+      ),
+    );
+  }
+}
+
+class _MiniConnectDotsPainter extends CustomPainter {
+  const _MiniConnectDotsPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final points = <Offset>[
+      Offset(size.width * .18, size.height * .70),
+      Offset(size.width * .34, size.height * .28),
+      Offset(size.width * .50, size.height * .70),
+      Offset(size.width * .66, size.height * .28),
+      Offset(size.width * .82, size.height * .70),
+    ];
+
+    final linePaint = Paint()
+      ..color = const Color(0xFF6D91E7)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    for (var i = 0; i < 3; i++) {
+      canvas.drawLine(points[i], points[i + 1], linePaint);
+    }
+
+    for (var i = 0; i < points.length; i++) {
+      final active = i < 4;
+      canvas.drawCircle(
+        points[i],
+        11,
+        Paint()..color = active ? const Color(0xFF4E7DDE) : Colors.white,
+      );
+      canvas.drawCircle(
+        points[i],
+        11,
+        Paint()
+          ..color = const Color(0xFF4E7DDE)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
+
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: '${i + 1}',
+          style: TextStyle(
+            color: active ? Colors.white : const Color(0xFF315EA8),
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      textPainter.paint(
+        canvas,
+        points[i] - Offset(textPainter.width / 2, textPainter.height / 2),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -476,16 +476,6 @@ class _CatchStarsGameScreenState extends State<CatchStarsGameScreen> {
       ),
     );
   }
-
-  static String _starWord(int count) {
-    final mod100 = count % 100;
-    final mod10 = count % 10;
-
-    if (mod100 >= 11 && mod100 <= 14) return 'звёздочек';
-    if (mod10 == 1) return 'звёздочку';
-    if (mod10 >= 2 && mod10 <= 4) return 'звёздочки';
-    return 'звёздочек';
-  }
 }
 
 class _InfoPanel extends StatelessWidget {

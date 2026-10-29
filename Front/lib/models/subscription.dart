@@ -7,6 +7,11 @@ class TariffPlan {
   final String currency;
   final int durationDays;
   final int maxChildren;
+  final bool googlePlayEnabled;
+  final String googleProductId;
+  final String googleBasePlanId;
+  final bool appleStoreEnabled;
+  final String appleProductId;
 
   const TariffPlan({
     required this.id,
@@ -17,6 +22,11 @@ class TariffPlan {
     required this.currency,
     required this.durationDays,
     required this.maxChildren,
+    this.googlePlayEnabled = false,
+    this.googleProductId = '',
+    this.googleBasePlanId = '',
+    this.appleStoreEnabled = false,
+    this.appleProductId = '',
   });
 }
 
@@ -30,6 +40,10 @@ class SubscriptionInfo {
   final bool isCurrent;
   final String paymentProvider;
   final String externalPaymentId;
+  final String googleProductId;
+  final String googleBasePlanId;
+  final String googleOrderId;
+  final String googleSubscriptionState;
 
   const SubscriptionInfo({
     required this.id,
@@ -41,6 +55,10 @@ class SubscriptionInfo {
     required this.isCurrent,
     this.paymentProvider = '',
     this.externalPaymentId = '',
+    this.googleProductId = '',
+    this.googleBasePlanId = '',
+    this.googleOrderId = '',
+    this.googleSubscriptionState = '',
   });
 
   String get statusLabel {

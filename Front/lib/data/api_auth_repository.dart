@@ -23,7 +23,17 @@ class ApiAuthRepository implements AuthRepository {
     try {
       await client.dio.get(ApiConfig.account('me/'));
       return true;
-    } on DioException {
+    } on DioException catch (error) {
+      final status = error.response?.statusCode;
+
+      // Без сети локальную авторизацию считаем сохранённой. Серверный
+      // контент всё равно останется закрыт проверкой подписки, а локальные
+      // мини-игры ребёнок сможет открыть из экрана connection_error.
+      if (ApiClient.isConnectionError(error) ||
+          (status != null && status >= 500)) {
+        return true;
+      }
+
       return false;
     }
   }

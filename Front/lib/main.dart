@@ -22,6 +22,7 @@ import 'screens/achievements_screen.dart';
 import 'screens/adventure_choice_screen.dart';
 import 'screens/child_settings_screen.dart';
 import 'screens/learned_words_games_screen.dart';
+import 'screens/offline_mode_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/parent_dashboard_screen.dart';
 import 'screens/parent_login_screen.dart';
@@ -90,10 +91,12 @@ class _AuthGate extends StatefulWidget {
 class _StartupSession {
   final bool loggedIn;
   final int? childId;
+  final bool offline;
 
   const _StartupSession({
     required this.loggedIn,
     this.childId,
+    this.offline = false,
   });
 }
 
@@ -116,37 +119,74 @@ class _AuthGateState extends State<_AuthGate> {
   }
 
   Future<_StartupSession> _loadStartupSession() async {
+    final selectedChildId = await parentRepository.getSelectedChildId();
+    final cachedChildLocale =
+        await apiClient.childSessionStorage.readSelectedChildLocale();
+
+    final accessToken = await apiClient.tokenStorage.readAccess();
+    final refreshToken = await apiClient.tokenStorage.readRefresh();
+    final hasLocalTokens =
+        (accessToken != null && accessToken.isNotEmpty) ||
+            (refreshToken != null && refreshToken.isNotEmpty);
+
+    // Если детский профиль уже был выбран, сначала пытаемся восстановить его.
+    // Сетевой сбой здесь НЕ должен очищать локальную сессию: ребёнок сможет
+    // открыть локальные мини-игры даже при холодном старте без интернета.
+    if (selectedChildId != null && selectedChildId > 0 && hasLocalTokens) {
+      try {
+        final child = await parentRepository.getChild(selectedChildId);
+        if (!child.isActive) {
+          await parentRepository.clearSelectedChild();
+          await _applyParentLocale();
+          return const _StartupSession(loggedIn: true);
+        }
+
+        final localeCode = child.baseLanguage?.code;
+        await apiClient.childSessionStorage.saveSelectedChildId(
+          child.id,
+          localeCode: localeCode,
+        );
+        appLocaleController.setCode(localeCode);
+        return _StartupSession(
+          loggedIn: true,
+          childId: child.id,
+        );
+      } on ParentApiException catch (error) {
+        final serverUnavailable = error.isNetworkError ||
+            error.statusCode == null ||
+            (error.statusCode != null && error.statusCode! >= 500);
+
+        if (serverUnavailable) {
+          appLocaleController.setCode(cachedChildLocale);
+          return _StartupSession(
+            loggedIn: true,
+            childId: selectedChildId,
+            offline: true,
+          );
+        }
+
+        // Сервер явно сообщил, что профиль/авторизация больше не доступны.
+        // Только в этом случае локальный выбор ребёнка можно очистить.
+        if (error.statusCode == 401 ||
+            error.statusCode == 403 ||
+            error.statusCode == 404) {
+          await parentRepository.clearSelectedChild();
+        }
+      }
+    }
+
     final loggedIn = await authRepository.isLoggedIn();
     if (!loggedIn) {
       return const _StartupSession(loggedIn: false);
     }
 
-    final selectedChildId = await parentRepository.getSelectedChildId();
     if (selectedChildId == null || selectedChildId <= 0) {
       await _applyParentLocale();
       return const _StartupSession(loggedIn: true);
     }
 
-    // Проверяем, что сохранённый профиль всё ещё существует и активен.
-    // Если профиль удалили/архивировали, возвращаем родительский кабинет.
-    try {
-      final child = await parentRepository.getChild(selectedChildId);
-      if (!child.isActive) {
-        await parentRepository.clearSelectedChild();
-        await _applyParentLocale();
-        return const _StartupSession(loggedIn: true);
-      }
-
-      appLocaleController.setCode(child.baseLanguage?.code);
-      return _StartupSession(
-        loggedIn: true,
-        childId: child.id,
-      );
-    } catch (_) {
-      await parentRepository.clearSelectedChild();
-      await _applyParentLocale();
-      return const _StartupSession(loggedIn: true);
-    }
+    await _applyParentLocale();
+    return const _StartupSession(loggedIn: true);
   }
 
   void _refresh() {
@@ -208,6 +248,7 @@ class _AuthGateState extends State<_AuthGate> {
         if (session.childId != null) {
           return ChildRootShell(
             childId: session.childId!,
+            startOffline: session.offline,
             onReturnToParent: _refresh,
           );
         }
@@ -226,11 +267,13 @@ class _AuthGateState extends State<_AuthGate> {
 
 class ChildRootShell extends StatefulWidget {
   final int childId;
+  final bool startOffline;
   final VoidCallback? onReturnToParent;
 
   const ChildRootShell({
     super.key,
     required this.childId,
+    this.startOffline = false,
     this.onReturnToParent,
   });
 
@@ -245,8 +288,10 @@ class _ChildRootShellState extends State<ChildRootShell> with WidgetsBindingObse
   bool _allowPop = false;
   bool _exitInProgress = false;
   bool _checkingSubscription = true;
+  bool _subscriptionCheckInProgress = false;
   SubscriptionAccessStatus? _subscriptionAccess;
   StreamSubscription<String>? _subscriptionGateSubscription;
+  Timer? _offlineRetryTimer;
 
   @override
   void initState() {
@@ -256,7 +301,14 @@ class _ChildRootShellState extends State<ChildRootShell> with WidgetsBindingObse
     _subscriptionGateSubscription = apiClient.subscriptionGateEvents.listen(
       _handleSubscriptionGateEvent,
     );
-    _checkSubscriptionAccess(showLoading: true);
+
+    if (widget.startOffline) {
+      _checkingSubscription = false;
+      _subscriptionAccess = SubscriptionAccessStatus.connectionError();
+      _setOfflineAutoRetry(enabled: true);
+    } else {
+      _checkSubscriptionAccess(showLoading: true);
+    }
   }
 
   @override
@@ -268,16 +320,35 @@ class _ChildRootShellState extends State<ChildRootShell> with WidgetsBindingObse
 
   void _handleSubscriptionGateEvent(String reason) {
     if (!mounted) return;
+    final access = SubscriptionAccessStatus(
+      active: false,
+      reason: reason,
+    );
     setState(() {
       _checkingSubscription = false;
-      _subscriptionAccess = SubscriptionAccessStatus(
-        active: false,
-        reason: reason,
-      );
+      _subscriptionAccess = access;
     });
+    _setOfflineAutoRetry(enabled: reason == 'connection_error');
+  }
+
+  void _setOfflineAutoRetry({required bool enabled}) {
+    if (!enabled) {
+      _offlineRetryTimer?.cancel();
+      _offlineRetryTimer = null;
+      return;
+    }
+
+    if (_offlineRetryTimer != null) return;
+    _offlineRetryTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _checkSubscriptionAccess(showLoading: false),
+    );
   }
 
   Future<void> _checkSubscriptionAccess({bool showLoading = false}) async {
+    if (_subscriptionCheckInProgress) return;
+    _subscriptionCheckInProgress = true;
+
     if (showLoading && mounted) {
       setState(() => _checkingSubscription = true);
     }
@@ -292,12 +363,44 @@ class _ChildRootShellState extends State<ChildRootShell> with WidgetsBindingObse
           _homeRevision++;
         }
       });
+      _setOfflineAutoRetry(enabled: false);
+    } on ParentApiException catch (error) {
+      if (!mounted) return;
+
+      // Сетевые ошибки и временные ошибки сервера переводят ребёнка только
+      // в локальный игровой режим. Сессию и JWT не удаляем.
+      final unavailable = error.isNetworkError ||
+          error.statusCode == null ||
+          (error.statusCode != null && error.statusCode! >= 500);
+
+      if (unavailable) {
+        setState(() {
+          _subscriptionAccess = SubscriptionAccessStatus.connectionError();
+          _checkingSubscription = false;
+        });
+        _setOfflineAutoRetry(enabled: true);
+        return;
+      }
+
+      // Для остальных ошибок не открываем обучение; используем существующий
+      // безопасный экран ограничения доступа.
+      setState(() {
+        _subscriptionAccess = const SubscriptionAccessStatus(
+          active: false,
+          reason: 'none',
+        );
+        _checkingSubscription = false;
+      });
+      _setOfflineAutoRetry(enabled: false);
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _subscriptionAccess = SubscriptionAccessStatus.connectionError();
         _checkingSubscription = false;
       });
+      _setOfflineAutoRetry(enabled: true);
+    } finally {
+      _subscriptionCheckInProgress = false;
     }
   }
 
@@ -313,6 +416,7 @@ class _ChildRootShellState extends State<ChildRootShell> with WidgetsBindingObse
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _subscriptionGateSubscription?.cancel();
+    _offlineRetryTimer?.cancel();
     BackgroundMusicService.instance.stopChildMode();
     super.dispose();
   }
@@ -327,7 +431,9 @@ class _ChildRootShellState extends State<ChildRootShell> with WidgetsBindingObse
   Future<void> _refreshChildLocale() async {
     try {
       final child = await parentRepository.getChild(widget.childId);
-      appLocaleController.setCode(child.baseLanguage?.code);
+      final localeCode = child.baseLanguage?.code;
+      await apiClient.childSessionStorage.saveSelectedChildLocale(localeCode);
+      appLocaleController.setCode(localeCode);
     } catch (_) {}
   }
 
@@ -493,6 +599,16 @@ class _ChildRootShellState extends State<ChildRootShell> with WidgetsBindingObse
 
     final access = _subscriptionAccess ??
         const SubscriptionAccessStatus(active: false, reason: 'none');
+
+    if (access.reason == 'connection_error') {
+      return PopScope(
+        canPop: false,
+        child: OfflineModeScreen(
+          onPlay: _openFreePlay,
+          onRetry: () => _checkSubscriptionAccess(showLoading: false),
+        ),
+      );
+    }
 
     if (!access.active) {
       return PopScope(

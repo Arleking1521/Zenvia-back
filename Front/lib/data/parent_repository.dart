@@ -43,6 +43,7 @@ abstract class ParentRepository {
   Future<SubscriptionInfo?> getCurrentSubscription();
   Future<SubscriptionInfo> startTrial();
   Future<SubscriptionInfo> disableAutoRenew(int subscriptionId);
+  Future<SubscriptionInfo> verifyGooglePlayPurchase(String purchaseToken);
   Future<SubscriptionAccessStatus> getSubscriptionAccessStatus();
   Future<SubscriptionInfo> createSubscription(
     int tariffId, {
@@ -58,7 +59,14 @@ abstract class ParentRepository {
 
 class ParentApiException implements Exception {
   final String message;
-  const ParentApiException(this.message);
+  final int? statusCode;
+  final bool isNetworkError;
+
+  const ParentApiException(
+    this.message, {
+    this.statusCode,
+    this.isNetworkError = false,
+  });
 
   @override
   String toString() => message;

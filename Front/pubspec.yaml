@@ -1,7 +1,7 @@
 name: zenvia_kids
 description: Приложение для изучения языков для детей (RU/KZ/EN/CN)
 publish_to: 'none'
-version: 0.1.0
+version: 0.1.1+2
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -15,6 +15,8 @@ dependencies:
   dio: ^5.7.0
   flutter_secure_storage: ^9.2.2
   shared_preferences: ^2.3.2
+  in_app_purchase: ^3.3.1
+  in_app_purchase_android: ^0.5.5
   flutter_html: 3.0.0
   flutter_html_table: 3.0.0
   # flutter_html 3.0.0 uses an internal API removed in html 0.15.7.

@@ -10,6 +10,7 @@ class LegalDocument {
   final DateTime? publishedAt;
   final bool requiresReacceptance;
   final String sourceSha256;
+  final String sourceFormat;
   final String? sourceFileUrl;
 
   const LegalDocument({
@@ -24,8 +25,11 @@ class LegalDocument {
     required this.publishedAt,
     required this.requiresReacceptance,
     required this.sourceSha256,
+    required this.sourceFormat,
     required this.sourceFileUrl,
   });
+
+  bool get isPdf => sourceFormat.toLowerCase() == 'pdf';
 
   factory LegalDocument.fromJson(Map<String, dynamic> json) {
     return LegalDocument(
@@ -40,6 +44,7 @@ class LegalDocument {
       publishedAt: DateTime.tryParse(json['published_at']?.toString() ?? ''),
       requiresReacceptance: json['requires_reacceptance'] == true,
       sourceSha256: json['source_sha256']?.toString() ?? '',
+      sourceFormat: json['source_format']?.toString() ?? '',
       sourceFileUrl: _nullableString(json['source_file_url']),
     );
   }
@@ -56,6 +61,7 @@ class LegalDocument {
         'published_at': publishedAt?.toIso8601String(),
         'requires_reacceptance': requiresReacceptance,
         'source_sha256': sourceSha256,
+        'source_format': sourceFormat,
         'source_file_url': sourceFileUrl,
       };
 

@@ -57,7 +57,7 @@ class ApiParentRepository implements ParentRepository {
             : _trialAccess(trialMap),
       );
     } on DioException catch (e) {
-      throw ParentApiException(_message(e, 'Не удалось загрузить личный кабинет.'));
+      throw _apiException(e, 'Не удалось загрузить личный кабинет.');
     }
   }
 
@@ -67,7 +67,7 @@ class ApiParentRepository implements ParentRepository {
       final response = await client.dio.get<dynamic>(ApiConfig.account('children/'));
       return _rows(response.data).map(_child).toList();
     } on DioException catch (e) {
-      throw ParentApiException(_message(e, 'Не удалось загрузить профили детей.'));
+      throw _apiException(e, 'Не удалось загрузить профили детей.');
     }
   }
 
@@ -79,7 +79,7 @@ class ApiParentRepository implements ParentRepository {
       );
       return _child(response.data ?? const <String, dynamic>{});
     } on DioException catch (e) {
-      throw ParentApiException(_message(e, 'Не удалось загрузить профиль ребёнка.'));
+      throw _apiException(e, 'Не удалось загрузить профиль ребёнка.');
     }
   }
 
@@ -105,7 +105,7 @@ class ApiParentRepository implements ParentRepository {
       });
       return languages;
     } on DioException catch (e) {
-      throw ParentApiException(_message(e, 'Не удалось загрузить языки.'));
+      throw _apiException(e, 'Не удалось загрузить языки.');
     }
   }
 
@@ -122,7 +122,7 @@ class ApiParentRepository implements ParentRepository {
         );
       }).where((e) => e.id > 0).toList();
     } on DioException catch (e) {
-      throw ParentApiException(_message(e, 'Не удалось загрузить аватары.'));
+      throw _apiException(e, 'Не удалось загрузить аватары.');
     }
   }
 
@@ -143,7 +143,7 @@ class ApiParentRepository implements ParentRepository {
       );
       return _child(response.data ?? const <String, dynamic>{});
     } on DioException catch (e) {
-      throw ParentApiException(_message(e, 'Не удалось создать профиль ребёнка.'));
+      throw _apiException(e, 'Не удалось создать профиль ребёнка.');
     }
   }
 
@@ -166,7 +166,7 @@ class ApiParentRepository implements ParentRepository {
       );
       return _child(response.data ?? const <String, dynamic>{});
     } on DioException catch (e) {
-      throw ParentApiException(_message(e, 'Не удалось изменить профиль ребёнка.'));
+      throw _apiException(e, 'Не удалось изменить профиль ребёнка.');
     }
   }
 
@@ -177,7 +177,7 @@ class ApiParentRepository implements ParentRepository {
       final selected = await getSelectedChildId();
       if (selected == childId) await clearSelectedChild();
     } on DioException catch (e) {
-      throw ParentApiException(_message(e, 'Не удалось удалить профиль ребёнка.'));
+      throw _apiException(e, 'Не удалось удалить профиль ребёнка.');
     }
   }
 
@@ -201,7 +201,7 @@ class ApiParentRepository implements ParentRepository {
       );
       return response.data?['has_pin'] == true;
     } on DioException catch (e) {
-      throw ParentApiException(_message(e, 'Не удалось проверить родительский PIN.'));
+      throw _apiException(e, 'Не удалось проверить родительский PIN.');
     }
   }
 
@@ -221,7 +221,7 @@ class ApiParentRepository implements ParentRepository {
         },
       );
     } on DioException catch (e) {
-      throw ParentApiException(_message(e, 'Не удалось сохранить родительский PIN.'));
+      throw _apiException(e, 'Не удалось сохранить родительский PIN.');
     }
   }
 
@@ -235,9 +235,12 @@ class ApiParentRepository implements ParentRepository {
       return response.data?['valid'] == true;
     } on DioException catch (e) {
       if (e.response?.statusCode == 429) {
-        throw const ParentApiException('Слишком много попыток. Подождите минуту и попробуйте снова.');
+        throw const ParentApiException(
+          'Слишком много попыток. Подождите минуту и попробуйте снова.',
+          statusCode: 429,
+        );
       }
-      throw ParentApiException(_message(e, 'Не удалось проверить родительский PIN.'));
+      throw _apiException(e, 'Не удалось проверить родительский PIN.');
     }
   }
 
@@ -247,7 +250,7 @@ class ApiParentRepository implements ParentRepository {
       final response = await client.dio.get<dynamic>(ApiConfig.account('tariffs/'));
       return _rows(response.data).map(_tariff).toList();
     } on DioException catch (e) {
-      throw ParentApiException(_message(e, 'Не удалось загрузить тарифы.'));
+      throw _apiException(e, 'Не удалось загрузить тарифы.');
     }
   }
 
@@ -269,7 +272,7 @@ class ApiParentRepository implements ParentRepository {
         tariff: _tariff(tariff),
       );
     } on DioException catch (e) {
-      throw ParentApiException(_message(e, 'Не удалось проверить промокод.'));
+      throw _apiException(e, 'Не удалось проверить промокод.');
     }
   }
 
@@ -283,7 +286,7 @@ class ApiParentRepository implements ParentRepository {
       final row = _map(response.data);
       return row == null ? null : _subscription(row);
     } on DioException catch (e) {
-      throw ParentApiException(_message(e, 'Не удалось загрузить подписку.'));
+      throw _apiException(e, 'Не удалось загрузить подписку.');
     }
   }
 
@@ -297,9 +300,7 @@ class ApiParentRepository implements ParentRepository {
       );
       return _subscription(response.data ?? const <String, dynamic>{});
     } on DioException catch (e) {
-      throw ParentApiException(
-        _message(e, 'Не удалось активировать пробный период.'),
-      );
+      throw _apiException(e, 'Не удалось активировать пробный период.');
     }
   }
 
@@ -313,9 +314,20 @@ class ApiParentRepository implements ParentRepository {
       );
       return _subscription(response.data ?? const <String, dynamic>{});
     } on DioException catch (e) {
-      throw ParentApiException(
-        _message(e, 'Не удалось отключить автопродление.'),
+      throw _apiException(e, 'Не удалось отключить автопродление.');
+    }
+  }
+
+  @override
+  Future<SubscriptionInfo> verifyGooglePlayPurchase(String purchaseToken) async {
+    try {
+      final response = await client.dio.post<Map<String, dynamic>>(
+        ApiConfig.account('subscriptions/google-play/verify/'),
+        data: {'purchase_token': purchaseToken},
       );
+      return _subscription(response.data ?? const <String, dynamic>{});
+    } on DioException catch (e) {
+      throw _apiException(e, 'Не удалось подтвердить покупку Google Play.');
     }
   }
 
@@ -338,9 +350,7 @@ class ApiParentRepository implements ParentRepository {
         endsAt: DateTime.tryParse(data['ends_at']?.toString() ?? ''),
       );
     } on DioException catch (e) {
-      throw ParentApiException(
-        _message(e, 'Не удалось проверить подписку.'),
-      );
+      throw _apiException(e, 'Не удалось проверить подписку.');
     }
   }
 
@@ -361,7 +371,7 @@ class ApiParentRepository implements ParentRepository {
       );
       return _subscription(response.data ?? const <String, dynamic>{});
     } on DioException catch (e) {
-      throw ParentApiException(_message(e, 'Не удалось оформить тариф.'));
+      throw _apiException(e, 'Не удалось оформить тариф.');
     }
   }
 
@@ -393,9 +403,7 @@ class ApiParentRepository implements ParentRepository {
             subscriptionRow == null ? null : _subscription(subscriptionRow),
       );
     } on DioException catch (e) {
-      throw ParentApiException(
-        _message(e, 'Ошибка тестовой оплаты.'),
-      );
+      throw _apiException(e, 'Ошибка тестовой оплаты.');
     }
   }
 
@@ -407,9 +415,7 @@ class ApiParentRepository implements ParentRepository {
         ApiConfig.account('subscriptions/fake-reset/'),
       );
     } on DioException catch (e) {
-      throw ParentApiException(
-        _message(e, 'Не удалось сбросить тестовую подписку.'),
-      );
+      throw _apiException(e, 'Не удалось сбросить тестовую подписку.');
     }
   }
 
@@ -488,6 +494,11 @@ class ApiParentRepository implements ParentRepository {
         currency: row['currency']?.toString() ?? 'KZT',
         durationDays: _int(row['duration_days']),
         maxChildren: _int(row['max_children']),
+        googlePlayEnabled: row['google_play_enabled'] == true,
+        googleProductId: row['google_product_id']?.toString() ?? '',
+        googleBasePlanId: row['google_base_plan_id']?.toString() ?? '',
+        appleStoreEnabled: row['apple_store_enabled'] == true,
+        appleProductId: row['apple_product_id']?.toString() ?? '',
       );
 
   SubscriptionInfo _subscription(Map<String, dynamic> row) {
@@ -502,6 +513,10 @@ class ApiParentRepository implements ParentRepository {
       isCurrent: row['is_current'] == true,
       paymentProvider: row['payment_provider']?.toString() ?? '',
       externalPaymentId: row['external_payment_id']?.toString() ?? '',
+      googleProductId: row['google_product_id']?.toString() ?? '',
+      googleBasePlanId: row['google_base_plan_id']?.toString() ?? '',
+      googleOrderId: row['google_order_id']?.toString() ?? '',
+      googleSubscriptionState: row['google_subscription_state']?.toString() ?? '',
     );
   }
 
@@ -528,6 +543,32 @@ class ApiParentRepository implements ParentRepository {
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
+  static ParentApiException _apiException(
+    DioException error,
+    String fallback,
+  ) {
+    return ParentApiException(
+      _message(error, fallback),
+      statusCode: error.response?.statusCode,
+      isNetworkError: _isNetworkError(error),
+    );
+  }
+
+  static bool _isNetworkError(DioException error) {
+    switch (error.type) {
+      case DioExceptionType.connectionError:
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.transformTimeout:
+        return true;
+      case DioExceptionType.unknown:
+        return error.response == null;
+      default:
+        return false;
+    }
+  }
+
   static String _message(DioException error, String fallback) {
     final data = error.response?.data;
     if (data is Map) {
@@ -546,8 +587,11 @@ class ApiParentRepository implements ParentRepository {
       }
     }
     if (error.type == DioExceptionType.connectionError ||
-        error.type == DioExceptionType.connectionTimeout) {
-      return 'Нет соединения с Django. Проверь IP, Wi-Fi и firewall.';
+        error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.transformTimeout) {
+      return 'Нет соединения с Django. Проверь интернет и доступность сервера.';
     }
     return '$fallback (HTTP ${error.response?.statusCode ?? '-'})';
   }

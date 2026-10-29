@@ -73,12 +73,30 @@ def get_google_subscription(purchase_token):
     )
     try:
         response = _authorized_session().get(url, timeout=20)
+    except GooglePlayConfigurationError:
+        raise
     except Exception as exc:
+        logger.exception('Unable to contact Google Play Developer API')
         raise GooglePlayVerificationError(
             'Не удалось связаться с Google Play Developer API.'
         ) from exc
     if response.status_code >= 400:
-        logger.warning('Google Play verification failed: %s %s', response.status_code, response.text[:500])
+        logger.warning(
+            'Google Play verification failed: %s %s',
+            response.status_code,
+            response.text[:500],
+        )
+        if response.status_code in {401, 403}:
+            raise GooglePlayConfigurationError(
+                'Service account не имеет доступа к Google Play Developer API '
+                f'для приложения {_package_name()}. Проверьте API access и права '
+                'на просмотр финансовых данных/заказов в Play Console.'
+            )
+        if response.status_code == 404:
+            raise GooglePlayVerificationError(
+                'Google Play не нашёл эту подписку. Проверьте package name, '
+                'Product ID, Base Plan ID и тестовый аккаунт.'
+            )
         raise GooglePlayVerificationError(
             'Google Play не подтвердил эту подписку.'
         )

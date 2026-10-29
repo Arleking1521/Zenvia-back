@@ -92,6 +92,16 @@ class ApiClient {
     );
   }
 
+  static bool isConnectionError(DioException error) {
+    if (error.response != null) return false;
+
+    return error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.unknown;
+  }
+
   String? _subscriptionGateReason(DioException error) {
     if (error.response?.statusCode != 403) return null;
     final data = error.response?.data;
@@ -133,9 +143,15 @@ class ApiClient {
 
       await tokenStorage.saveAccess(access);
       return true;
-    } on DioException {
-      await tokenStorage.clear();
-      await childSessionStorage.clear();
+    } on DioException catch (error) {
+      // Потеря сети не означает, что аккаунт или детская сессия недействительны.
+      // Очищаем JWT и выбранного ребёнка только когда сервер явно отклонил
+      // refresh-токен. Это позволяет локальным мини-играм работать офлайн.
+      final statusCode = error.response?.statusCode;
+      if (statusCode == 400 || statusCode == 401 || statusCode == 403) {
+        await tokenStorage.clear();
+        await childSessionStorage.clear();
+      }
       return false;
     }
   }

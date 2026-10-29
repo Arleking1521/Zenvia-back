@@ -126,18 +126,17 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
           _isLoadingAudio = false;
         });
       }
-    } on DioException catch (e) {
+    } on DioException {
       if (!mounted) return;
       setState(() {
         _isLoadingAudio = false;
         _isPlayingAudio = false;
         _currentAudioUrl = null;
       });
-      final status = e.response?.statusCode;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.tr('audioPlayFailed'))),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _isLoadingAudio = false;

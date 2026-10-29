@@ -1,4 +1,9 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 
 import '../data/parent_repository.dart';
 import '../models/subscription.dart';
@@ -7,7 +12,7 @@ import '../theme/app_colors.dart';
 
 const bool _fakePaymentsEnabled = bool.fromEnvironment(
   'FAKE_PAYMENTS',
-  defaultValue: true,
+  defaultValue: false,
 );
 
 class TariffsScreen extends StatefulWidget {
@@ -26,15 +31,34 @@ class _TariffsScreenState extends State<TariffsScreen> {
   bool _validatingPromo = false;
   bool _disablingAutoRenew = false;
   KindergartenPromoOffer? _promoOffer;
+  StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
+  Map<int, ProductDetails> _googleProducts = const {};
+  Map<int, String> _googlePrices = const {};
+  Set<String> _googleNotFoundIds = const <String>{};
+  final Set<String> _verifyingPurchaseTokens = <String>{};
+  bool _googleStoreAvailable = false;
+  bool _restoringPurchases = false;
+  String? _googleStoreError;
 
   @override
   void initState() {
     super.initState();
+    _purchaseSubscription = InAppPurchase.instance.purchaseStream.listen(
+      _handlePurchaseUpdates,
+      onError: (Object error) {
+        if (!mounted) return;
+        setState(() => _processingId = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('googlePlayPurchaseFailed'))),
+        );
+      },
+    );
     _future = _load();
   }
 
   @override
   void dispose() {
+    _purchaseSubscription?.cancel();
     _promoController.dispose();
     super.dispose();
   }
@@ -44,10 +68,304 @@ class _TariffsScreenState extends State<TariffsScreen> {
       widget.repository.getTariffs(),
       widget.repository.getCurrentSubscription(),
     ]);
+    final tariffs = values[0] as List<TariffPlan>;
+    if (!_fakePaymentsEnabled && Platform.isAndroid) {
+      await _loadGoogleProducts(tariffs);
+    }
     return _Data(
-      tariffs: values[0] as List<TariffPlan>,
+      tariffs: tariffs,
       current: values[1] as SubscriptionInfo?,
     );
+  }
+
+  Future<void> _loadGoogleProducts(List<TariffPlan> tariffs) async {
+    _googleStoreError = null;
+    _googleNotFoundIds = const <String>{};
+
+    try {
+      final available = await InAppPurchase.instance.isAvailable();
+      if (!available) {
+        _googleStoreAvailable = false;
+        _googleProducts = const {};
+        _googlePrices = const {};
+        _googleStoreError = 'billing_unavailable';
+        debugPrint('[Billing] Google Play Billing is unavailable.');
+        return;
+      }
+
+      final productIds = tariffs
+          .where((plan) =>
+              plan.googlePlayEnabled &&
+              plan.googleProductId.trim().isNotEmpty &&
+              plan.googleBasePlanId.trim().isNotEmpty)
+          .map((plan) => plan.googleProductId.trim())
+          .toSet();
+      if (productIds.isEmpty) {
+        _googleStoreAvailable = true;
+        _googleProducts = const {};
+        _googlePrices = const {};
+        debugPrint('[Billing] No Google Play products are configured by the backend.');
+        return;
+      }
+
+      debugPrint('[Billing] Querying products: ${productIds.join(', ')}');
+      final response =
+          await InAppPurchase.instance.queryProductDetails(productIds);
+      final products = <int, ProductDetails>{};
+      final prices = <int, String>{};
+      _googleNotFoundIds = response.notFoundIDs.toSet();
+
+      final responseError = response.error;
+      if (responseError != null) {
+        _googleStoreError = '${responseError.code}: ${responseError.message}';
+        debugPrint('[Billing] queryProductDetails error: $_googleStoreError');
+      }
+      if (_googleNotFoundIds.isNotEmpty) {
+        debugPrint(
+          '[Billing] Products not found: ${_googleNotFoundIds.join(', ')}',
+        );
+      }
+
+      for (final plan in tariffs) {
+        if (!plan.googlePlayEnabled) continue;
+        GooglePlayProductDetails? fallback;
+        GooglePlayProductDetails? preferred;
+
+        for (final details in response.productDetails) {
+          if (details.id != plan.googleProductId ||
+              details is! GooglePlayProductDetails) {
+            continue;
+          }
+
+          final index = details.subscriptionIndex;
+          final offers = details.productDetails.subscriptionOfferDetails;
+          if (index == null ||
+              offers == null ||
+              index < 0 ||
+              index >= offers.length) {
+            debugPrint(
+              '[Billing] ${details.id}: invalid subscription offer index $index.',
+            );
+            continue;
+          }
+
+          final offer = offers[index];
+          debugPrint(
+            '[Billing] ${details.id}: basePlan=${offer.basePlanId}, '
+            'offer=${offer.offerId ?? '<base-plan>'}, price=${details.price}',
+          );
+          if (offer.basePlanId != plan.googleBasePlanId) continue;
+
+          fallback ??= details;
+          // Prefer the regular base-plan offer. If Google returns only an
+          // eligible promotional offer, keep it as a safe fallback.
+          if (offer.offerId == null) {
+            preferred = details;
+            break;
+          }
+        }
+
+        final selected = preferred ?? fallback;
+        if (selected != null) {
+          products[plan.id] = selected;
+          prices[plan.id] = selected.price;
+          debugPrint(
+            '[Billing] Tariff ${plan.code}: ${plan.googleProductId}/'
+            '${plan.googleBasePlanId} is ready (${selected.price}).',
+          );
+        } else {
+          debugPrint(
+            '[Billing] Tariff ${plan.code}: no matching Google Play offer for '
+            '${plan.googleProductId}/${plan.googleBasePlanId}.',
+          );
+        }
+      }
+
+      _googleStoreAvailable = true;
+      _googleProducts = products;
+      _googlePrices = prices;
+    } catch (error, stackTrace) {
+      _googleStoreAvailable = false;
+      _googleProducts = const {};
+      _googlePrices = const {};
+      _googleStoreError = error.toString();
+      debugPrint('[Billing] Failed to load products: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
+  String? _googlePlayIssue(TariffPlan plan) {
+    if (_fakePaymentsEnabled) return null;
+    if (!Platform.isAndroid) return context.tr('googlePlayAndroidOnly');
+    if (!plan.googlePlayEnabled ||
+        plan.googleProductId.trim().isEmpty ||
+        plan.googleBasePlanId.trim().isEmpty) {
+      return context.tr('googlePlayTariffNotConfigured');
+    }
+    if (!_googleStoreAvailable) {
+      return context.tr('googlePlayStoreUnavailable');
+    }
+    if (_googleProducts[plan.id] != null) return null;
+    if (_googleNotFoundIds.contains(plan.googleProductId)) {
+      return context.tr(
+        'googlePlayProductNotFound',
+        {'product': plan.googleProductId},
+      );
+    }
+    if (_googleStoreError != null && _googleStoreError!.isNotEmpty) {
+      return context.tr(
+        'googlePlayStoreError',
+        {'error': _googleStoreError!},
+      );
+    }
+    return context.tr(
+      'googlePlayBasePlanNotFound',
+      {
+        'product': plan.googleProductId,
+        'basePlan': plan.googleBasePlanId,
+      },
+    );
+  }
+
+  void _reloadBilling() {
+    if (!mounted) return;
+    setState(() {
+      _googleStoreError = null;
+      _future = _load();
+    });
+  }
+
+  void _showGooglePlayIssue(TariffPlan plan) {
+    final message = _googlePlayIssue(plan) ??
+        context.tr('googlePlayProductUnavailable');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: SnackBarAction(
+          label: context.tr('retry'),
+          onPressed: _reloadBilling,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
+    for (final purchase in purchases) {
+      debugPrint(
+        '[Billing] Purchase update: product=${purchase.productID}, '
+        'status=${purchase.status}, pendingComplete=${purchase.pendingCompletePurchase}',
+      );
+
+      if (purchase.status == PurchaseStatus.pending) {
+        if (mounted) {
+          setState(() => _processingId = null);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.tr('paymentPending'))),
+          );
+        }
+        continue;
+      }
+
+      if (purchase.status == PurchaseStatus.error ||
+          purchase.status == PurchaseStatus.canceled) {
+        if (mounted) {
+          setState(() => _processingId = null);
+          final error = purchase.error;
+          final message = purchase.status == PurchaseStatus.canceled
+              ? context.tr('paymentCancelled')
+              : error == null
+                  ? context.tr('googlePlayPurchaseFailed')
+                  : context.tr(
+                      'googlePlayPurchaseError',
+                      {'code': error.code, 'message': error.message},
+                    );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
+        }
+        continue;
+      }
+
+      if (purchase.status != PurchaseStatus.purchased &&
+          purchase.status != PurchaseStatus.restored) {
+        continue;
+      }
+      if (purchase is! GooglePlayPurchaseDetails) {
+        debugPrint('[Billing] Ignoring non-Google purchase on Android.');
+        continue;
+      }
+
+      final token = purchase.verificationData.serverVerificationData.trim();
+      if (token.isEmpty) {
+        if (mounted) {
+          setState(() => _processingId = null);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.tr('googlePlayMissingToken'))),
+          );
+        }
+        continue;
+      }
+
+      // The purchase stream can emit the same active purchase more than once
+      // (for example after restore). Do not verify one token concurrently.
+      if (!_verifyingPurchaseTokens.add(token)) {
+        debugPrint('[Billing] Purchase token is already being verified.');
+        continue;
+      }
+
+      try {
+        final subscription =
+            await widget.repository.verifyGooglePlayPurchase(token);
+        if (purchase.pendingCompletePurchase) {
+          try {
+            await InAppPurchase.instance.completePurchase(purchase);
+          } catch (error) {
+            // Backend performs server-side acknowledgement. Keep the client
+            // completion attempt as recommended by the Flutter plugin, but do
+            // not invalidate an already verified subscription if it races with
+            // the server acknowledgement.
+            debugPrint('[Billing] completePurchase warning: $error');
+          }
+        }
+        if (!mounted) continue;
+        setState(() {
+          _processingId = null;
+          _promoOffer = null;
+          _promoController.clear();
+          _future = _load();
+        });
+        if (subscription.isCurrent) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.tr('googlePlayPurchaseVerified'))),
+          );
+        }
+      } catch (error) {
+        debugPrint('[Billing] Server verification failed: $error');
+        if (!mounted) continue;
+        setState(() => _processingId = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      } finally {
+        _verifyingPurchaseTokens.remove(token);
+      }
+    }
+  }
+
+  Future<void> _restoreGooglePurchases() async {
+    if (_restoringPurchases) return;
+    setState(() => _restoringPurchases = true);
+    try {
+      await InAppPurchase.instance.restorePurchases();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _restoringPurchases = false);
+    }
   }
 
   Future<void> _validatePromo() async {
@@ -270,41 +588,42 @@ class _TariffsScreenState extends State<TariffsScreen> {
       return;
     }
 
+    if (!Platform.isAndroid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('googlePlayAndroidOnly'))),
+      );
+      return;
+    }
+
+    final issue = _googlePlayIssue(plan);
+    final product = _googleProducts[plan.id];
+    if (issue != null || product == null) {
+      _showGooglePlayIssue(plan);
+      return;
+    }
+
     setState(() => _processingId = plan.id);
     try {
-      final sub = await widget.repository.createSubscription(
-        plan.id,
-        promoCode: promoCode,
+      final purchaseParam = GooglePlayPurchaseParam(productDetails: product);
+      final started = await InAppPurchase.instance.buyNonConsumable(
+        purchaseParam: purchaseParam,
       );
+      if (!started && mounted) {
+        setState(() => _processingId = null);
+      }
+    } catch (e) {
       if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text(context.tr('planCreated')),
+      setState(() => _processingId = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text(
-            context.tr('subscriptionStatusCreated', {'status': AppStrings.subscriptionStatus(context, sub.status)}),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(context.tr('understood')),
+            context.tr(
+              'googlePlayPurchaseStartError',
+              {'error': e.toString()},
             ),
-          ],
+          ),
         ),
       );
-      setState(() {
-        _promoOffer = null;
-        _promoController.clear();
-        _future = _load();
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _processingId = null);
     }
   }
 
@@ -464,10 +783,39 @@ class _TariffsScreenState extends State<TariffsScreen> {
             ],
             const SizedBox(height: 10),
             Text(
-              context.tr('priceDays', {'price': plan.price, 'currency': plan.currency, 'days': plan.durationDays}),
+              _googlePrices[plan.id] != null && !_fakePaymentsEnabled
+                  ? '${_googlePrices[plan.id]} / ${plan.durationDays} ${context.tr('daysShort')}'
+                  : context.tr('priceDays', {
+                      'price': plan.price,
+                      'currency': plan.currency,
+                      'days': plan.durationDays,
+                    }),
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             Text(context.tr('childrenUpTo', {'count': plan.maxChildren})),
+            if (!_fakePaymentsEnabled && _googlePlayIssue(plan) != null) ...[
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      _googlePlayIssue(plan)!,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -742,6 +1090,24 @@ class _TariffsScreenState extends State<TariffsScreen> {
                   disabled: hasSubscription,
                 ),
               ),
+              if (!_fakePaymentsEnabled && Platform.isAndroid) ...[
+                const SizedBox(height: 4),
+                OutlinedButton.icon(
+                  onPressed: _restoringPurchases ? null : _restoreGooglePurchases,
+                  icon: _restoringPurchases
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.restore_rounded),
+                  label: Text(
+                    _restoringPurchases
+                        ? context.tr('restoringPurchases')
+                        : context.tr('restorePurchases'),
+                  ),
+                ),
+              ],
               const Divider(height: 32),
               _promoSection(disabled: hasSubscription),
             ],
