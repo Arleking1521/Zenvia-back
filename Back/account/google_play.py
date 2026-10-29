@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,6 +13,7 @@ from google.oauth2 import service_account
 from .models import Subscription, TariffPlan
 
 logger = logging.getLogger(__name__)
+audit_logger = logging.getLogger('django.request')
 _SCOPE = 'https://www.googleapis.com/auth/androidpublisher'
 
 
@@ -61,6 +63,10 @@ def _parse_time(value):
         return None
 
 
+def _token_fp(token):
+    return hashlib.sha256((token or '').encode('utf-8')).hexdigest()[:12]
+
+
 def get_google_subscription(purchase_token):
     token = (purchase_token or '').strip()
     if not token:
@@ -81,10 +87,11 @@ def get_google_subscription(purchase_token):
             'Не удалось связаться с Google Play Developer API.'
         ) from exc
     if response.status_code >= 400:
-        logger.warning(
-            'Google Play verification failed: %s %s',
+        audit_logger.warning(
+            'Google Play verification failed token=%s http=%s body=%s',
+            _token_fp(token),
             response.status_code,
-            response.text[:500],
+            response.text[:1000],
         )
         if response.status_code in {401, 403}:
             raise GooglePlayConfigurationError(
@@ -100,7 +107,36 @@ def get_google_subscription(purchase_token):
         raise GooglePlayVerificationError(
             'Google Play не подтвердил эту подписку.'
         )
-    return response.json()
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        audit_logger.warning(
+            'Google Play verification returned non-JSON token=%s http=%s body=%s',
+            _token_fp(token),
+            response.status_code,
+            response.text[:1000],
+        )
+        raise GooglePlayVerificationError(
+            'Google Play вернул некорректный ответ при проверке подписки.'
+        ) from exc
+
+    audit_logger.warning(
+        'Google Play verification OK token=%s state=%s ack=%s region=%s lineItems=%s',
+        _token_fp(token),
+        payload.get('subscriptionState'),
+        payload.get('acknowledgementState'),
+        payload.get('regionCode'),
+        [
+            {
+                'productId': item.get('productId'),
+                'basePlanId': (item.get('offerDetails') or {}).get('basePlanId'),
+                'offerId': (item.get('offerDetails') or {}).get('offerId'),
+                'expiryTime': item.get('expiryTime'),
+            }
+            for item in (payload.get('lineItems') or [])
+        ],
+    )
+    return payload
 
 
 def _find_tariff_and_line_item(payload):
@@ -123,8 +159,26 @@ def _find_tariff_and_line_item(payload):
         candidates.append((expiry or datetime.min.replace(tzinfo=UTC), tariff, line_item))
 
     if not candidates:
+        actual = [
+            {
+                'productId': (item.get('productId') or '').strip(),
+                'basePlanId': ((item.get('offerDetails') or {}).get('basePlanId') or '').strip(),
+                'offerId': ((item.get('offerDetails') or {}).get('offerId') or '').strip(),
+            }
+            for item in (payload.get('lineItems') or [])
+        ]
+        configured = list(
+            TariffPlan.objects.filter(is_active=True, google_play_enabled=True)
+            .values('id', 'name', 'google_product_id', 'google_base_plan_id')
+        )
+        audit_logger.warning(
+            'Google Play tariff mapping failed actual=%s configured=%s',
+            actual,
+            configured,
+        )
         raise GooglePlayVerificationError(
-            'Для купленного Google Play продукта не найден соответствующий тариф Zenvia.'
+            f'Не удалось сопоставить покупку Google Play с тарифом Zenvia. '
+            f'Google вернул: {actual}. Проверьте Product ID и Base Plan ID.'
         )
     candidates.sort(key=lambda item: item[0], reverse=True)
     _, tariff, line_item = candidates[0]
@@ -206,6 +260,12 @@ def apply_google_subscription(parent, purchase_token, *, acknowledge=True):
             .first()
         )
         if existing is not None and existing.parent_id != parent.id:
+            audit_logger.warning(
+                'Google Play purchase token=%s already belongs to parent=%s, requested parent=%s',
+                _token_fp(token),
+                existing.parent_id,
+                parent.id,
+            )
             raise GooglePlayVerificationError(
                 'Эта покупка Google Play уже привязана к другому аккаунту.'
             )
@@ -224,6 +284,10 @@ def apply_google_subscription(parent, purchase_token, *, acknowledge=True):
         subscription.google_subscription_state = remote_state
         subscription.google_last_verified_at = timezone.now()
         subscription.save()
+        audit_logger.warning(
+            'Google Play subscription saved id=%s parent=%s token=%s product=%s basePlan=%s status=%s',
+            subscription.pk, parent.id, _token_fp(token), product_id, base_plan_id, local_status,
+        )
 
     if (
         acknowledge

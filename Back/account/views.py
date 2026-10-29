@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 from uuid import uuid4
 
@@ -49,6 +50,8 @@ from .serializers import (
     GooglePlayPurchaseVerifySerializer,
 )
 
+
+logger = logging.getLogger('django.request')
 
 class RegisterView(CreateAPIView):
     queryset = User.objects.all()
@@ -417,17 +420,38 @@ class SubscriptionViewSet(
     @action(detail=False, methods=['post'], url_path='google-play/verify')
     def google_play_verify(self, request):
         serializer = GooglePlayPurchaseVerifySerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            logger.warning(
+                'Google Play verify invalid request user=%s errors=%s',
+                getattr(request.user, 'pk', None),
+                serializer.errors,
+            )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         try:
             subscription = apply_google_subscription(
                 request.user,
                 serializer.validated_data['purchase_token'],
             )
         except GooglePlayConfigurationError as exc:
+            logger.warning(
+                'Google Play verify configuration error user=%s detail=%s',
+                getattr(request.user, 'pk', None),
+                str(exc),
+            )
             return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         except GooglePlayVerificationError as exc:
+            logger.warning(
+                'Google Play verify rejected user=%s detail=%s',
+                getattr(request.user, 'pk', None),
+                str(exc),
+            )
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
+        logger.warning(
+            'Google Play verify success user=%s subscription=%s',
+            getattr(request.user, 'pk', None),
+            subscription.pk,
+        )
         return Response(
             SubscriptionSerializer(subscription, context={'request': request}).data,
             status=status.HTTP_200_OK,
