@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.parse import quote
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -9,6 +10,7 @@ from account.models import TariffPlan
 
 
 _SCOPE = 'https://www.googleapis.com/auth/androidpublisher'
+_TARGET_REGION = 'KZ'
 
 
 class Command(BaseCommand):
@@ -78,57 +80,144 @@ class Command(BaseCommand):
                     errors.append(f'{plan.code}: пустой Google Base Plan ID.')
 
         if options['online'] and credentials is not None and package_name:
-            url = (
-                'https://androidpublisher.googleapis.com/androidpublisher/v3/'
-                f'applications/{package_name}/subscriptions?pageSize=100'
-            )
-            try:
-                response = AuthorizedSession(credentials).get(url, timeout=20)
-            except Exception as exc:
-                errors.append(f'Android Publisher API недоступен: {exc}')
-            else:
-                if response.status_code >= 400:
-                    errors.append(
-                        'Android Publisher API вернул '
-                        f'HTTP {response.status_code}: {response.text[:500]}'
+            session = AuthorizedSession(credentials)
+            checked_products = {}
+
+            for plan in mappings:
+                product_id = (plan.google_product_id or '').strip()
+                base_plan_id = (plan.google_base_plan_id or '').strip()
+                if not product_id or not base_plan_id:
+                    continue
+
+                if product_id not in checked_products:
+                    safe_product_id = quote(product_id, safe='')
+                    url = (
+                        'https://androidpublisher.googleapis.com/androidpublisher/v3/'
+                        f'applications/{package_name}/subscriptions/{safe_product_id}'
                     )
-                else:
-                    payload = response.json()
-                    remote = {
-                        item.get('productId'): item
-                        for item in payload.get('subscriptions', [])
-                        if item.get('productId')
-                    }
+                    try:
+                        response = session.get(url, timeout=20)
+                    except Exception as exc:
+                        errors.append(
+                            f'Android Publisher API недоступен для {product_id!r}: {exc}'
+                        )
+                        checked_products[product_id] = None
+                        continue
+
+                    content_type = response.headers.get('content-type', '')
+                    if response.status_code >= 400:
+                        body = (response.text or '').strip()
+                        errors.append(
+                            f'Android Publisher API для {product_id!r} вернул '
+                            f'HTTP {response.status_code}: {body[:800] or "<empty body>"}'
+                        )
+                        checked_products[product_id] = None
+                        continue
+
+                    body = (response.text or '').strip()
+                    if not body:
+                        errors.append(
+                            f'Android Publisher API для {product_id!r} вернул '
+                            f'HTTP {response.status_code}, но тело ответа пустое '
+                            f'(Content-Type: {content_type or "<missing>"}).'
+                        )
+                        checked_products[product_id] = None
+                        continue
+
+                    try:
+                        payload = response.json()
+                    except ValueError:
+                        errors.append(
+                            f'Android Publisher API для {product_id!r} вернул '
+                            f'HTTP {response.status_code}, но не JSON '
+                            f'(Content-Type: {content_type or "<missing>"}): {body[:800]}'
+                        )
+                        checked_products[product_id] = None
+                        continue
+
+                    checked_products[product_id] = payload
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f'Android Publisher API: OK, подписок найдено: {len(remote)}'
+                            f'Android Publisher API: OK ({product_id})'
                         )
                     )
-                    for plan in mappings:
-                        remote_sub = remote.get(plan.google_product_id)
-                        if remote_sub is None:
-                            errors.append(
-                                f'Google Play не вернул Product ID {plan.google_product_id!r}.'
-                            )
-                            continue
-                        base_plan_ids = {
-                            item.get('basePlanId')
-                            for item in remote_sub.get('basePlans', [])
-                            if item.get('basePlanId')
-                        }
-                        if plan.google_base_plan_id not in base_plan_ids:
-                            errors.append(
-                                f'В {plan.google_product_id!r} нет Base Plan '
-                                f'{plan.google_base_plan_id!r}; найдено: '
-                                f'{sorted(base_plan_ids)}'
-                            )
-                        else:
-                            self.stdout.write(
-                                self.style.SUCCESS(
-                                    f'Google Play mapping OK: '
-                                    f'{plan.google_product_id}/{plan.google_base_plan_id}'
-                                )
-                            )
+
+                remote_sub = checked_products.get(product_id)
+                if not remote_sub:
+                    continue
+
+                if remote_sub.get('productId') != product_id:
+                    errors.append(
+                        f'Google Play вернул неожиданный Product ID: '
+                        f'{remote_sub.get("productId")!r} вместо {product_id!r}.'
+                    )
+                    continue
+
+                base_plan = next(
+                    (
+                        item
+                        for item in remote_sub.get('basePlans', [])
+                        if item.get('basePlanId') == base_plan_id
+                    ),
+                    None,
+                )
+                if base_plan is None:
+                    found_ids = sorted(
+                        item.get('basePlanId')
+                        for item in remote_sub.get('basePlans', [])
+                        if item.get('basePlanId')
+                    )
+                    errors.append(
+                        f'В {product_id!r} нет Base Plan {base_plan_id!r}; '
+                        f'найдено: {found_ids}'
+                    )
+                    continue
+
+                state = base_plan.get('state')
+                if state != 'ACTIVE':
+                    errors.append(
+                        f'{product_id}/{base_plan_id}: Base Plan имеет статус '
+                        f'{state!r}, ожидался "ACTIVE".'
+                    )
+                    continue
+
+                kz_config = next(
+                    (
+                        item
+                        for item in base_plan.get('regionalConfigs', [])
+                        if item.get('regionCode') == _TARGET_REGION
+                    ),
+                    None,
+                )
+                if kz_config is None:
+                    errors.append(
+                        f'{product_id}/{base_plan_id}: нет regionalConfig для KZ.'
+                    )
+                    continue
+
+                if not kz_config.get('newSubscriberAvailability', False):
+                    errors.append(
+                        f'{product_id}/{base_plan_id}: в KZ '
+                        f'newSubscriberAvailability=false.'
+                    )
+                    continue
+
+                price = kz_config.get('price') or {}
+                units = price.get('units', '0')
+                nanos = int(price.get('nanos', 0) or 0)
+                currency = price.get('currencyCode', '')
+                try:
+                    price_value = int(units) + nanos / 1_000_000_000
+                    price_text = f'{price_value:g} {currency}'.strip()
+                except (TypeError, ValueError):
+                    price_text = f'{units} {currency}'.strip()
+
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'Google Play mapping OK: {product_id}/{base_plan_id}; '
+                        f'state=ACTIVE; KZ=available; price={price_text or "<unknown>"}'
+                    )
+                )
 
         if errors:
             for error in errors:
