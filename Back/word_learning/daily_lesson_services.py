@@ -2,20 +2,42 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from .models import Concept, DailyWordLesson, DailyWordLessonItem, Word
+from .models import Concept, DailyWordLesson, DailyWordLessonItem, Word, WordProgress
 from .xp_services import get_xp_local_date
 
 
 DAILY_WORDS_PER_LESSON = 5
 
 
+def get_studied_concept_ids(profile, topic, language):
+    """Return concepts permanently unlocked for this child/topic/language.
+
+    Daily lesson listening is the source of truth for new learning. Mastery=5
+    is included only for backwards compatibility with progress accumulated
+    before daily lessons were introduced. Game mistakes never remove a concept
+    that has already been listened to in a daily lesson.
+    """
+    studied_ids = set(
+        DailyWordLessonItem.objects.filter(
+            lesson__profile=profile,
+            lesson__topic=topic,
+            lesson__language=language,
+            listened_at__isnull=False,
+        ).values_list('concept_id', flat=True)
+    )
+    studied_ids.update(
+        WordProgress.objects.filter(
+            profile=profile,
+            concept__topic=topic,
+            language=language,
+            mastery=5,
+        ).values_list('concept_id', flat=True)
+    )
+    return studied_ids
+
+
 def _eligible_new_concepts(profile, topic, language):
-    introduced_ids = DailyWordLessonItem.objects.filter(
-        lesson__profile=profile,
-        lesson__topic=topic,
-        lesson__language=language,
-        lesson__completed_at__isnull=False,
-    ).values_list('concept_id', flat=True)
+    studied_ids = get_studied_concept_ids(profile, topic, language)
 
     playable_concept_ids = (
         Word.objects
@@ -36,7 +58,7 @@ def _eligible_new_concepts(profile, topic, language):
             is_active=True,
             id__in=playable_concept_ids,
         )
-        .exclude(id__in=introduced_ids)
+        .exclude(id__in=studied_ids)
         .order_by('position', 'id')
     )
 

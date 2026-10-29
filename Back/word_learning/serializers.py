@@ -311,7 +311,19 @@ class GameSessionCreateSerializer(serializers.Serializer):
         from .daily_lesson_services import ensure_daily_lesson_complete
         from account.services import get_child_profile
 
+        request = self.context['request']
+        profile = get_child_profile(request)
+
+        # First force today's five-word lesson. Once it is complete, game
+        # validation and question generation use only the accumulated studied
+        # concepts for this child/topic/language.
+        ensure_daily_lesson_complete(
+            profile,
+            attrs['topic'],
+            attrs['language'],
+        )
         validate_game_content(
+            profile,
             attrs['topic'],
             attrs['language'],
             attrs['game_type'],
@@ -320,14 +332,6 @@ class GameSessionCreateSerializer(serializers.Serializer):
         # Game length is fixed by type so no client can choose a one-question
         # session just to reach the XP cap faster.
         attrs['question_count'] = 3 if attrs['game_type'] == 'matching' else 10
-
-        request = self.context['request']
-        profile = get_child_profile(request)
-        ensure_daily_lesson_complete(
-            profile,
-            attrs['topic'],
-            attrs['language'],
-        )
         return attrs
 
     def create(self, validated_data):

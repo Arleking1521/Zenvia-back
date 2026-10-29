@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from .models import Concept, GameQuestion, Word, WordProgress
+from .daily_lesson_services import get_studied_concept_ids
 
 
 _rng = random.SystemRandom()
@@ -49,11 +50,17 @@ def _absolute_url(request, field):
 
 
 def _words_for_language(session):
+    studied_ids = get_studied_concept_ids(
+        session.profile,
+        session.topic,
+        session.language,
+    )
     return (
         Word.objects
         .filter(
             concept__topic=session.topic,
             concept__is_active=True,
+            concept_id__in=studied_ids,
             language=session.language,
             concept__image__isnull=False,
         )
@@ -69,11 +76,13 @@ def _eligible_words(session, require_audio=False):
     return list(queryset)
 
 
-def validate_game_content(topic, language, game_type):
+def validate_game_content(profile, topic, language, game_type):
+    studied_ids = get_studied_concept_ids(profile, topic, language)
     words = list(
         Word.objects.filter(
             concept__topic=topic,
             concept__is_active=True,
+            concept_id__in=studied_ids,
             language=language,
             concept__image__isnull=False,
         ).exclude(concept__image='').select_related('concept')
@@ -82,7 +91,7 @@ def validate_game_content(topic, language, game_type):
     concept_ids = {word.concept_id for word in words}
     if len(concept_ids) < 2:
         raise ValidationError(
-            'Для игры в выбранной теме нужно минимум 2 активных слова с картинками на выбранном языке.'
+            'Для игры нужно сначала изучить минимум 2 слова этой темы.'
         )
 
     if game_type == 'audio_choice':
@@ -93,7 +102,7 @@ def validate_game_content(topic, language, game_type):
         }
         if len(audio_concepts) < 2:
             raise ValidationError(
-                'Для аудио-игры нужно минимум 2 слова с аудиофайлами.'
+                'Для аудио-игры нужно минимум 2 изученных слова с аудиофайлами.'
             )
 
 

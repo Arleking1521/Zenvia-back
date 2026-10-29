@@ -310,11 +310,14 @@ class SubscriptionViewSet(
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        tariff, _ = TariffPlan.objects.get_or_create(
+        # Keep the historical tariff code for compatibility with existing
+        # subscriptions. Existing admin on/off state is preserved, while the
+        # duration/title are normalised to the current one-day trial.
+        tariff, created = TariffPlan.objects.get_or_create(
             code=TRIAL_TARIFF_CODE,
             defaults={
-                'title': 'Пробный период 7 дней',
-                'description': 'Бесплатный пробный доступ без автопродления.',
+                'title': 'Пробный период 1 день',
+                'description': 'Бесплатный пробный доступ на 1 день без автопродления.',
                 'price': '0.00',
                 'currency': 'KZT',
                 'duration_days': TRIAL_DEFAULT_DAYS,
@@ -324,6 +327,14 @@ class SubscriptionViewSet(
                 'position': 0,
             },
         )
+        if not created and (
+            tariff.duration_days != TRIAL_DEFAULT_DAYS
+            or tariff.title != 'Пробный период 1 день'
+        ):
+            tariff.duration_days = TRIAL_DEFAULT_DAYS
+            tariff.title = 'Пробный период 1 день'
+            tariff.description = 'Бесплатный пробный доступ на 1 день без автопродления.'
+            tariff.save(update_fields=['duration_days', 'title', 'description'])
         if not tariff.is_active:
             return Response(
                 {'detail': 'Пробный период временно отключён.'},

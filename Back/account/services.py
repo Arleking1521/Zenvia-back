@@ -8,7 +8,7 @@ from .models import ChildProfile, Subscription, TariffPlan
 
 CHILD_PROFILE_HEADER = 'X-Child-Profile-ID'
 TRIAL_TARIFF_CODE = 'trial-7-days'
-TRIAL_DEFAULT_DAYS = 7
+TRIAL_DEFAULT_DAYS = 1
 
 
 
@@ -152,11 +152,17 @@ def get_trial_access(parent):
         if trial is not None
         else TariffPlan.objects.filter(code=TRIAL_TARIFF_CODE).first()
     )
-    days_total = (
-        int(trial_tariff.duration_days)
-        if trial_tariff is not None
-        else TRIAL_DEFAULT_DAYS
-    )
+
+    # New trials are always one day. Existing already-started trials keep their
+    # original end date, so we derive their displayed total from the actual
+    # subscription window instead of retroactively shortening them.
+    if trial is None:
+        days_total = TRIAL_DEFAULT_DAYS
+    elif trial.starts_at is not None and trial.ends_at is not None:
+        seconds_total = max((trial.ends_at - trial.starts_at).total_seconds(), 0)
+        days_total = max(1, ceil(seconds_total / 86400)) if seconds_total > 0 else 0
+    else:
+        days_total = int(trial_tariff.duration_days) if trial_tariff else TRIAL_DEFAULT_DAYS
 
     active_trial = trial is not None and trial.is_current
     active_subscription = get_active_subscription(parent)

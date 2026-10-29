@@ -38,6 +38,7 @@ from .models import (
     ProfileAchievement,
     Level,
     DailyWordLesson,
+    DailyWordLessonItem,
 )
 
 from .serializers import (
@@ -115,6 +116,29 @@ class TopicViewSet(ReadOnlyModelViewSet):
             )
         )
 
+        profile = get_child_profile(request)
+        language = get_object_or_404(Language, code=language_code)
+
+        # A word becomes available in the dictionary/games after it has been
+        # listened to in a daily lesson. Include mastery=5 only to preserve
+        # already-learned words from installations predating daily lessons.
+        learned_by_topic = {}
+        for topic_id, concept_id in DailyWordLessonItem.objects.filter(
+            lesson__profile=profile,
+            lesson__language=language,
+            listened_at__isnull=False,
+            concept__is_active=True,
+        ).values_list('concept__topic_id', 'concept_id'):
+            learned_by_topic.setdefault(topic_id, set()).add(concept_id)
+
+        for topic_id, concept_id in WordProgress.objects.filter(
+            profile=profile,
+            language=language,
+            mastery=5,
+            concept__is_active=True,
+        ).values_list('concept__topic_id', 'concept_id'):
+            learned_by_topic.setdefault(topic_id, set()).add(concept_id)
+
         result = []
 
         for topic in topics:
@@ -122,6 +146,7 @@ class TopicViewSet(ReadOnlyModelViewSet):
                 language__code=language_code
             ).first()
 
+            learned_ids = sorted(learned_by_topic.get(topic.id, set()))
             result.append({
                 'id': topic.id,
                 'title': translation.title if translation else '',
@@ -130,7 +155,9 @@ class TopicViewSet(ReadOnlyModelViewSet):
                     request.build_absolute_uri(topic.icon.url)
                     if topic.icon
                     else None
-                )
+                ),
+                'learned_count': len(learned_ids),
+                'learned_concept_ids': learned_ids,
             })
 
         return Response(result)
