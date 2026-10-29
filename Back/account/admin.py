@@ -65,12 +65,40 @@ class TariffPlanAdmin(admin.ModelAdmin):
         'currency',
         'duration_days',
         'max_children',
+        'google_play_enabled',
+        'apple_store_enabled',
         'is_public',
         'is_active',
     )
-    list_filter = ('is_public', 'is_active', 'currency')
-    search_fields = ('title', 'code')
+    list_filter = (
+        'is_public',
+        'is_active',
+        'google_play_enabled',
+        'apple_store_enabled',
+        'currency',
+    )
+    search_fields = (
+        'title',
+        'code',
+        'google_product_id',
+        'google_base_plan_id',
+        'apple_product_id',
+    )
     ordering = ('position', 'id')
+    fieldsets = (
+        ('Тариф Zenvia', {
+            'fields': (
+                'code', 'title', 'description', 'price', 'currency',
+                'duration_days', 'max_children', 'position', 'is_public', 'is_active',
+            ),
+        }),
+        ('Google Play', {
+            'fields': ('google_play_enabled', 'google_product_id', 'google_base_plan_id'),
+        }),
+        ('Apple App Store (на будущее)', {
+            'fields': ('apple_store_enabled', 'apple_product_id'),
+        }),
+    )
 
 
 @admin.register(Kindergarten)
@@ -135,12 +163,16 @@ class SubscriptionAdmin(admin.ModelAdmin):
         'tariff',
         'status',
         'payment_provider',
+        'auto_renew',
         'starts_at',
         'ends_at',
         'created_at',
     )
     list_filter = ('status', 'payment_provider', 'tariff')
-    search_fields = ('parent__email', 'parent__first_name', 'external_payment_id')
+    search_fields = (
+        'parent__email', 'parent__first_name', 'external_payment_id',
+        'google_order_id', 'google_product_id', 'google_purchase_token',
+    )
     readonly_fields = ('created_at', 'updated_at')
     fieldsets = (
         ('Подписка', {
@@ -151,6 +183,14 @@ class SubscriptionAdmin(admin.ModelAdmin):
         }),
         ('Оплата', {
             'fields': ('payment_provider', 'external_payment_id'),
+        }),
+        ('Google Play', {
+            'fields': (
+                'google_product_id', 'google_base_plan_id', 'google_order_id',
+                'google_purchase_token', 'google_subscription_state',
+                'google_last_verified_at',
+            ),
+            'classes': ('collapse',),
         }),
         ('Служебное', {
             'fields': ('created_at', 'updated_at'),

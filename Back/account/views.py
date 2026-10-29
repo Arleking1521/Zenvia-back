@@ -24,6 +24,13 @@ from .services import (
     get_trial_access,
 )
 from .fake_payments import fake_payments_enabled_for
+from .google_play import (
+    GooglePlayConfigurationError,
+    GooglePlayVerificationError,
+    apply_google_subscription,
+    cancel_google_subscription,
+    refresh_parent_google_subscription,
+)
 from .serializers import (
     ParentRegisterSerializer,
     ParentLoginSerializer,
@@ -39,6 +46,7 @@ from .serializers import (
     SubscriptionCreateSerializer,
     PromoCodeValidateSerializer,
     FakePaymentPurchaseSerializer,
+    GooglePlayPurchaseVerifySerializer,
 )
 
 
@@ -367,8 +375,34 @@ class SubscriptionViewSet(
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Идемпотентное действие: повторное нажатие безопасно.
-        if subscription.auto_renew:
+        if subscription.payment_provider == 'google_play':
+            if not subscription.google_purchase_token:
+                return Response(
+                    {'detail': 'У подписки отсутствует Google Play purchase token.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                cancel_google_subscription(subscription.google_purchase_token)
+                subscription = apply_google_subscription(
+                    request.user,
+                    subscription.google_purchase_token,
+                    acknowledge=False,
+                )
+                if subscription.auto_renew:
+                    subscription.auto_renew = False
+                    subscription.save(update_fields=['auto_renew', 'updated_at'])
+            except GooglePlayConfigurationError as exc:
+                return Response(
+                    {'detail': str(exc)},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            except GooglePlayVerificationError as exc:
+                return Response(
+                    {'detail': str(exc)},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        elif subscription.auto_renew:
+            # Trial/fake/local providers keep the existing local behavior.
             subscription.auto_renew = False
             subscription.save(update_fields=['auto_renew', 'updated_at'])
 
@@ -377,6 +411,25 @@ class SubscriptionViewSet(
                 subscription,
                 context={'request': request},
             ).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=['post'], url_path='google-play/verify')
+    def google_play_verify(self, request):
+        serializer = GooglePlayPurchaseVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            subscription = apply_google_subscription(
+                request.user,
+                serializer.validated_data['purchase_token'],
+            )
+        except GooglePlayConfigurationError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except GooglePlayVerificationError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            SubscriptionSerializer(subscription, context={'request': request}).data,
             status=status.HTTP_200_OK,
         )
 
@@ -496,6 +549,7 @@ class SubscriptionViewSet(
 
     @action(detail=False, methods=['get'], url_path='current')
     def current(self, request):
+        refresh_parent_google_subscription(request.user)
         subscriptions = self.get_queryset()
         current = next((item for item in subscriptions if item.is_current), None)
         if current is None:
@@ -511,6 +565,7 @@ class SubscriptionStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        refresh_parent_google_subscription(request.user)
         return Response(get_subscription_access(request.user))
 
 

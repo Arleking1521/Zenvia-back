@@ -148,11 +148,63 @@ class TariffPlan(models.Model):
         help_text='Отключите для скрытых тарифов, доступных только по промокоду.',
     )
     position = models.PositiveIntegerField(default=0, verbose_name='Порядок')
+    google_play_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Оплата через Google Play',
+    )
+    google_product_id = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        verbose_name='Google Play Product ID',
+    )
+    google_base_plan_id = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        verbose_name='Google Play Base Plan ID',
+    )
+    apple_store_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Оплата через App Store',
+    )
+    apple_product_id = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        unique=True,
+        verbose_name='Apple Product ID',
+    )
 
     class Meta:
         verbose_name = 'Тариф'
         verbose_name_plural = 'Тарифы'
         ordering = ['position', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['google_product_id', 'google_base_plan_id'],
+                name='unique_google_play_tariff_mapping',
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.google_play_enabled:
+            if not (self.google_product_id or '').strip():
+                errors['google_product_id'] = 'Укажите Google Play Product ID.'
+            if not (self.google_base_plan_id or '').strip():
+                errors['google_base_plan_id'] = 'Укажите Google Play Base Plan ID.'
+        if self.apple_store_enabled and not (self.apple_product_id or '').strip():
+            errors['apple_product_id'] = 'Укажите Apple Product ID.'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.google_product_id = (self.google_product_id or '').strip() or None
+        self.google_base_plan_id = (self.google_base_plan_id or '').strip() or None
+        self.apple_product_id = (self.apple_product_id or '').strip() or None
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title
@@ -271,6 +323,18 @@ class Subscription(models.Model):
     auto_renew = models.BooleanField(default=False, verbose_name='Автопродление')
     payment_provider = models.CharField(max_length=64, blank=True, verbose_name='Платёжный провайдер')
     external_payment_id = models.CharField(max_length=128, blank=True, verbose_name='ID платежа у провайдера')
+    google_purchase_token = models.CharField(
+        max_length=1024,
+        null=True,
+        blank=True,
+        unique=True,
+        verbose_name='Google Play purchase token',
+    )
+    google_product_id = models.CharField(max_length=128, blank=True, default='')
+    google_base_plan_id = models.CharField(max_length=128, blank=True, default='')
+    google_order_id = models.CharField(max_length=128, blank=True, default='')
+    google_subscription_state = models.CharField(max_length=64, blank=True, default='')
+    google_last_verified_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создана')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлена')
 

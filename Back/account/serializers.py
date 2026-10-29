@@ -350,6 +350,11 @@ class TariffPlanSerializer(serializers.ModelSerializer):
             'currency',
             'duration_days',
             'max_children',
+            'google_play_enabled',
+            'google_product_id',
+            'google_base_plan_id',
+            'apple_store_enabled',
+            'apple_product_id',
         ]
 
 
@@ -440,6 +445,10 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'auto_renew',
             'payment_provider',
             'external_payment_id',
+            'google_product_id',
+            'google_base_plan_id',
+            'google_order_id',
+            'google_subscription_state',
             'is_current',
             'promo_code',
             'kindergarten',
@@ -462,6 +471,10 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'id': kindergarten.id,
             'name': kindergarten.name,
         }
+
+
+class GooglePlayPurchaseVerifySerializer(serializers.Serializer):
+    purchase_token = serializers.CharField(max_length=2048, trim_whitespace=True)
 
 
 class SubscriptionCreateSerializer(serializers.Serializer):
