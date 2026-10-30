@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet, GenericViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User, Avatar, ChildProfile, TariffPlan, Subscription
+from .models import User, Avatar, ChildProfile, TariffPlan, Subscription, PromoCodeUsage
 from .services import (
     TRIAL_DEFAULT_DAYS,
     TRIAL_TARIFF_CODE,
@@ -438,11 +438,61 @@ class SubscriptionViewSet(
                 serializer.errors,
             )
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            subscription = apply_google_subscription(
-                request.user,
-                serializer.validated_data['purchase_token'],
+        promo = None
+        promo_code = (serializer.validated_data.get('promo_code') or '').strip()
+        if promo_code:
+            promo_serializer = PromoCodeValidateSerializer(
+                data={'code': promo_code},
+                context={'request': request},
             )
+            if not promo_serializer.is_valid():
+                logger.warning(
+                    'Google Play verify promo rejected user=%s code=%s errors=%s',
+                    getattr(request.user, 'pk', None),
+                    promo_code,
+                    promo_serializer.errors,
+                )
+                return Response(
+                    promo_serializer.errors,
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            promo = promo_serializer.validated_data['promo']
+
+        try:
+            with transaction.atomic():
+                subscription = apply_google_subscription(
+                    request.user,
+                    serializer.validated_data['purchase_token'],
+                )
+
+                if promo is not None:
+                    if subscription.tariff_id != promo.tariff_id:
+                        raise GooglePlayVerificationError(
+                            'Купленный Google Play тариф не соответствует промокоду.'
+                        )
+
+                    usage, created = PromoCodeUsage.objects.get_or_create(
+                        subscription=subscription,
+                        defaults={
+                            'promo_code': promo,
+                            'parent': request.user,
+                        },
+                    )
+                    if not created and (
+                        usage.promo_code_id != promo.id
+                        or usage.parent_id != request.user.id
+                    ):
+                        raise GooglePlayVerificationError(
+                            'Эта подписка уже связана с другим промокодом.'
+                        )
+
+                    logger.warning(
+                        'Google Play promo usage %s user=%s subscription=%s promo=%s',
+                        'created' if created else 'already_exists',
+                        getattr(request.user, 'pk', None),
+                        subscription.pk,
+                        promo.code,
+                    )
         except GooglePlayConfigurationError as exc:
             logger.warning(
                 'Google Play verify configuration error user=%s detail=%s',

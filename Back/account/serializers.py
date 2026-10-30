@@ -475,6 +475,12 @@ class SubscriptionSerializer(serializers.ModelSerializer):
 
 class GooglePlayPurchaseVerifySerializer(serializers.Serializer):
     purchase_token = serializers.CharField(max_length=2048, trim_whitespace=True)
+    promo_code = serializers.CharField(
+        max_length=64,
+        required=False,
+        allow_blank=False,
+        trim_whitespace=True,
+    )
 
 
 class SubscriptionCreateSerializer(serializers.Serializer):
