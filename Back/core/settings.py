@@ -138,6 +138,7 @@ USE_TZ = True
 
 FORCE_SCRIPT_NAME = "/zenvia"
 STATIC_URL = '/zenvia/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 # STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static')
