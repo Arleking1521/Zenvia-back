@@ -1,0 +1,257 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  .imp-toolbar { position: sticky; top: 0; z-index: 20; background: var(--body-bg, #fff);
+    border: 1px solid var(--hairline-color, #ddd); border-radius: 8px; padding: 10px 12px;
+    margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .imp-toolbar .sep { width: 1px; height: 22px; background: #ccc; margin: 0 4px; }
+  .imp-topic { border: 1px solid var(--hairline-color, #ddd); border-radius: 10px; margin-bottom: 22px; overflow: hidden; }
+  .imp-topic > header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 10px 12px; background: rgba(127,127,127,.08); }
+  .imp-topic header img { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; }
+  .imp-titles { display: flex; flex-wrap: wrap; gap: 8px; }
+  .imp-titles label { font-size: 12px; display: block; }
+  .imp-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #dfe9ff; color: #234; }
+  .imp-badge.upd { background: #ffe9c7; }
+  .imp-table { width: 100%; border-collapse: collapse; }
+  .imp-table th, .imp-table td { padding: 6px 8px; vertical-align: top; border-top: 1px solid var(--hairline-color, #eee); }
+  .imp-table img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; }
+  .imp-table input[type=text] { width: 100%; box-sizing: border-box; margin-bottom: 3px; }
+  .imp-table input.tr { font-size: 12px; opacity: .85; }
+  .imp-table audio { height: 28px; width: 100%; }
+  .imp-table input.pos { width: 52px; }
+  .crow.excluded { opacity: .35; }
+  .crow.skipped { opacity: .45; }
+  .crow.skipped .exist::after { content: " · пропустится"; }
+  input.auto { background: #fff7d1 !important; color: #222; }
+  #imp-status { font-size: 12px; opacity: .8; }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Главная</a> ›
+  <a href="{% url 'admin:word_learning_topic_changelist' %}">Темы</a> › Импорт
+</div>
+{% endblock %}
+
+{% block content %}
+{% if not draft %}
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <p class="help">Структура: <b>Тема / Слово / файлы</b>. Картинка в папке темы — иконка, картинка в папке слова — картинка слова,
+      аудио называйте по коду языка (<code>ru.mp3</code>, <code>en.mp3</code>…). Префикс <code>01_</code> в имени папки задаёт порядок.</p>
+    <input type="submit" value="Загрузить и открыть редактор" class="default">
+  </form>
+
+{% else %}
+
+  {% if errors %}
+    <ul class="messagelist">{% for e in errors %}<li class="error">{{ e }}</li>{% endfor %}</ul>
+  {% endif %}
+
+  <form method="post" id="imp-form">
+    {% csrf_token %}
+    <input type="hidden" name="token" value="{{ token }}">
+    <input type="hidden" name="src" value="{{ src }}">
+
+    <div class="imp-toolbar">
+      <span>Выбрано: <b id="sel-count">0</b></span>
+      <button type="button" id="sel-all">Выбрать все</button>
+      <button type="button" id="sel-none">Снять</button>
+      <span class="sep"></span>
+      <select id="bulk-diff">{% for v, l in difficulties %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select>
+      <button type="button" id="bulk-apply">Применить сложность</button>
+      <button type="button" id="bulk-exclude">Исключить</button>
+      <button type="button" id="bulk-include">Вернуть</button>
+      <span class="sep"></span>
+      <label><input type="checkbox" id="auto-tr" checked> Автоперевод</label>
+      <button type="button" id="tr-now">Перевести пустые</button>
+      <label title="Если выключено, слова, которые уже есть в теме, пропускаются">
+        <input type="checkbox" name="update-existing" value="1" id="upd-existing" {% if update_existing %}checked{% endif %}>
+        Обновлять уже существующие слова
+      </label>
+      <span id="imp-status"></span>
+      <span style="flex:1"></span>
+      <button type="submit" name="action" value="confirm" class="default">Подтвердить импорт</button>
+      <button type="submit" name="action" value="cancel" formnovalidate>Отмена</button>
+    </div>
+    <p class="help">Shift+клик по чекбоксу выделяет диапазон. Жёлтые поля заполнены автопереводом: проверьте их и при необходимости исправьте.</p>
+
+    {% for t in draft %}
+    <section class="imp-topic">
+      <header data-group="t{{ t.i }}">
+        <input type="checkbox" class="sel-topic" title="Выделить все слова темы">
+        <label title="Импортировать тему"><input type="checkbox" name="t{{ t.i }}-include" {% if t.include %}checked{% endif %}> импорт</label>
+        {% if t.icon_url %}<img src="{{ t.icon_url }}" alt="">{% endif %}
+        <span class="imp-badge {% if t.existing %}upd{% endif %}">{% if t.existing %}тема уже есть{% else %}новая тема{% endif %}</span>
+        <div class="imp-titles">
+          {% for code, title in t.titles.items %}
+            <label>{{ code }}<input type="text" class="tx" data-code="{{ code }}" name="t{{ t.i }}-title-{{ code }}" value="{{ title }}"></label>
+          {% endfor %}
+        </div>
+        <label>Сложность
+          <select name="t{{ t.i }}-difficulty">{% for v, l in difficulties %}<option value="{{ v }}" {% if v == t.difficulty %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+        </label>
+        <label>Порядок <input type="number" min="0" style="width:60px" name="t{{ t.i }}-position" value="{{ t.position }}"></label>
+        <label><input type="checkbox" name="t{{ t.i }}-active" {% if t.is_active %}checked{% endif %}> активна</label>
+      </header>
+
+      <table class="imp-table">
+        <thead><tr>
+          <th style="width:70px">#</th><th style="width:84px">Картинка</th><th style="width:130px">Сложность</th>
+          {% for l in langs %}<th>{{ l.title }} ({{ l.code }})</th>{% endfor %}
+        </tr></thead>
+        <tbody>
+        {% for c in t.concepts %}
+          <tr class="crow {% if not c.include %}excluded{% endif %}" data-group="t{{ t.i }}c{{ c.i }}">
+            <td>
+              <input type="checkbox" class="sel"><br>
+              <input type="number" min="0" class="pos" name="t{{ t.i }}c{{ c.i }}-position" value="{{ c.position }}">
+              <input type="hidden" class="inc" name="t{{ t.i }}c{{ c.i }}-include" value="{% if c.include %}1{% else %}0{% endif %}">
+            </td>
+            <td>{% if c.image_url %}<img src="{{ c.image_url }}" alt="">{% else %}—{% endif %}</td>
+            <td>
+              <select class="dsel" name="t{{ t.i }}c{{ c.i }}-difficulty">{% for v, l in difficulties %}<option value="{{ v }}" {% if v == c.difficulty %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+              <br><span class="imp-badge {% if c.existing %}upd exist{% endif %}">{% if c.existing %}уже есть{% else %}новое{% endif %}</span>
+            </td>
+            {% for w in c.words %}
+            <td>
+              <input type="text" class="tx" data-code="{{ w.code }}" name="t{{ t.i }}c{{ c.i }}-text-{{ w.code }}" value="{{ w.text }}">
+              <input type="text" class="tr" data-code="{{ w.code }}" name="t{{ t.i }}c{{ c.i }}-tr-{{ w.code }}" value="{{ w.transcription }}" placeholder="транскрипция">
+              {% if w.audio_url %}<audio controls preload="none" src="{{ w.audio_url }}"></audio>{% else %}<small>нет аудио</small>{% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+        {% empty %}
+          <tr><td colspan="{{ langs|length|add:3 }}">В теме нет папок со словами</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endfor %}
+  </form>
+
+<script>
+(function () {
+  const SRC = "{{ src }}";
+  const TR_URL = "{{ translate_url }}";
+  const CHUNK = 15;
+  const csrf = document.querySelector('#imp-form [name=csrfmiddlewaretoken]').value;
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const status = $('#imp-status');
+
+  // --- выделение ---
+  let last = null;
+  const sels = () => $$('.sel');
+  const checked = () => sels().filter(s => s.checked);
+  const upd = () => $('#sel-count').textContent = checked().length;
+
+  document.addEventListener('click', e => {
+    if (!e.target.matches('.sel')) return;
+    if (e.shiftKey && last && last !== e.target) {
+      const all = sels();
+      const a = all.indexOf(last), b = all.indexOf(e.target);
+      for (let i = Math.min(a, b); i <= Math.max(a, b); i++) all[i].checked = e.target.checked;
+    }
+    last = e.target; upd();
+  });
+  $$('.sel-topic').forEach(cb => cb.addEventListener('change', () => {
+    $$('.sel', cb.closest('section')).forEach(s => s.checked = cb.checked); upd();
+  }));
+  $('#sel-all').onclick = () => { sels().forEach(s => s.checked = true); upd(); };
+  $('#sel-none').onclick = () => { sels().forEach(s => s.checked = false); upd(); };
+
+  // --- массовые действия ---
+  const rows = () => checked().map(s => s.closest('tr'));
+  $('#bulk-apply').onclick = () => {
+    const v = $('#bulk-diff').value;
+    rows().forEach(r => $('.dsel', r).value = v);
+  };
+  const setInc = on => rows().forEach(r => {
+    $('.inc', r).value = on ? '1' : '0';
+    r.classList.toggle('excluded', !on);
+  });
+  $('#bulk-exclude').onclick = () => setInc(false);
+  $('#bulk-include').onclick = () => setInc(true);
+
+  // --- перевод ---
+  async function translate(groups) {
+    const items = [];
+    groups.forEach(g => {
+      if (g.classList.contains('excluded')) return;
+      const s = $(`.tx[data-code="${SRC}"]`, g);
+      if (!s || !s.value.trim()) return;
+      const targets = $$('.tx', g)
+        .filter(i => i.dataset.code !== SRC && (!i.value.trim() || i.dataset.auto === '1'))
+        .map(i => i.dataset.code);
+      if (targets.length) items.push({ id: g.dataset.group, text: s.value.trim(), targets });
+    });
+    for (let k = 0; k < items.length; k += CHUNK) {
+      status.textContent = `Перевод: ${Math.min(k + CHUNK, items.length)} / ${items.length}…`;
+      try {
+        const r = await fetch(TR_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+          body: JSON.stringify({ src: SRC, items: items.slice(k, k + CHUNK) }),
+        });
+        const data = await r.json();
+        if (data.error) throw new Error(data.error);
+        for (const [id, byCode] of Object.entries(data.result)) {
+          const g = document.querySelector(`[data-group="${id}"]`);
+          for (const [code, v] of Object.entries(byCode)) {
+            const tx = $(`.tx[data-code="${code}"]`, g);
+            if (tx && v.text) { tx.value = v.text; tx.dataset.auto = '1'; tx.classList.add('auto'); }
+            const tr = $(`.tr[data-code="${code}"]`, g);
+            if (tr && v.transcription && (!tr.value.trim() || tr.dataset.auto === '1')) {
+              tr.value = v.transcription; tr.dataset.auto = '1'; tr.classList.add('auto');
+            }
+          }
+        }
+      } catch (err) {
+        status.textContent = 'Ошибка перевода: ' + err.message; return;
+      }
+    }
+    status.textContent = items.length ? 'Перевод готов' : '';
+  }
+
+  const allGroups = () => $$('[data-group]');
+  $('#tr-now').onclick = () => translate(allGroups());
+
+  // ручная правка снимает пометку «автоперевод»
+  document.addEventListener('input', e => {
+    const el = e.target;
+    if (!el.matches('.tx, .tr')) return;
+    if (el.dataset.code !== SRC || el.classList.contains('tr')) {
+      delete el.dataset.auto; el.classList.remove('auto');
+    }
+  });
+  // правка слова на языке папок пересчитывает остальные автопереводы
+  document.addEventListener('change', e => {
+    const el = e.target;
+    if (el.matches(`.tx[data-code="${SRC}"]`) && $('#auto-tr').checked) {
+      translate([el.closest('[data-group]')]);
+    }
+  });
+
+  // Enter в поле не должен случайно подтвердить импорт
+  $('#imp-form').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.matches('input[type=text], input[type=number]')) e.preventDefault();
+  });
+
+  // подсветка строк, которые будут пропущены
+  const syncSkipped = () => $$('.crow').forEach(r => {
+    const isExisting = !!$('.exist', r);
+    r.classList.toggle('skipped', isExisting && !$('#upd-existing').checked);
+  });
+  $('#upd-existing').addEventListener('change', syncSkipped);
+  syncSkipped();
+
+  if ($('#auto-tr').checked) translate(allGroups());
+})();
+</script>
+{% endif %}
+{% endblock %}

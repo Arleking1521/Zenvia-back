@@ -228,3 +228,7 @@ DAILY_XP_TIMEZONE = os.getenv('DAILY_XP_TIMEZONE', 'Asia/Almaty')
 # Google Play Billing / Android Publisher API
 GOOGLE_PLAY_PACKAGE_NAME = os.getenv('GOOGLE_PLAY_PACKAGE_NAME', 'kz.zenvia.kids')
 GOOGLE_PLAY_SERVICE_ACCOUNT_FILE = os.getenv('GOOGLE_PLAY_SERVICE_ACCOUNT_FILE', '')
+
+# Импорт тем из архива: форма редактора содержит ~11 полей на слово
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 20000
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024

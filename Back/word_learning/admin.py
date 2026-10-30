@@ -4,7 +4,20 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from urllib.parse import urlencode
+import json
+from urllib.parse import urlencode
+from django import forms
+from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
+from django.db.models import Count
+from django.http import JsonResponse
+from django.shortcuts import redirect
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
+from django.utils import timezone
+from django.utils.html import format_html
 
+from . import importer, translator
 from .models import *
 
 
@@ -112,6 +125,18 @@ class TopicTranslateInline(admin.TabularInline):
     )
 
 
+class ArchiveUploadForm(forms.Form):
+    archive = forms.FileField(label='ZIP-архив')
+    src = forms.ChoiceField(label='Язык, на котором названы папки', choices=())
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        langs = list(Language.objects.all())  # порядок: position, id
+        self.fields['src'].choices = [(l.code, f'{l.title} ({l.code})') for l in langs]
+        if any(l.code == 'ru' for l in langs):
+            self.fields['src'].initial = 'ru'
+
+
 @admin.register(Topic)
 class TopicAdmin(admin.ModelAdmin):
     list_display = (
@@ -179,6 +204,113 @@ class TopicAdmin(admin.ModelAdmin):
             },
         ),
     )
+    change_list_template = 'admin/word_learning/topic/change_list.html'
+
+    def get_urls(self):
+        custom = [
+            path('import-archive/',
+                 self.admin_site.admin_view(self.import_archive_view),
+                 name='word_learning_topic_import'),
+            path('import-archive/translate/',
+                 self.admin_site.admin_view(self.translate_view),
+                 name='word_learning_topic_translate'),
+        ]
+        return custom + super().get_urls()
+
+    def _render_import(self, request, ctx, draft=None, token=None, src=None,
+                       errors=(), update_existing=False):
+        if draft is not None:
+            langs = Language.objects.all()
+            ctx.update(
+                draft=draft, token=token, src=src, errors=list(errors),
+                update_existing=update_existing,
+                langs=[{'code': l.code, 'title': l.title} for l in langs],
+                difficulties=list(DIFFICULTY_CHOICES),
+                translate_url=reverse('admin:word_learning_topic_translate'),
+            )
+        return TemplateResponse(request, 'admin/word_learning/import_archive.html', ctx)
+
+    def import_archive_view(self, request):
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+
+        changelist_url = reverse('admin:word_learning_topic_changelist')
+        ctx = {
+            **self.admin_site.each_context(request),
+            'opts': self.model._meta,
+            'title': 'Импорт тем из архива',
+            'form': ArchiveUploadForm(),
+        }
+        if request.method != 'POST':
+            return self._render_import(request, ctx)
+
+        action = request.POST.get('action')
+        token = request.POST.get('token')
+        try:
+            if action == 'cancel':
+                importer.cleanup(token)
+                return redirect(changelist_url)
+
+            if action == 'confirm':
+                src = request.POST.get('src')
+                draft = importer.scan(token, src)
+                importer.overlay(draft, request.POST)
+                update_existing = 'update-existing' in request.POST
+                errors = importer.validate(draft, src)
+                if errors:
+                    return self._render_import(
+                        request, ctx, draft, token, src, errors, update_existing)
+                stats = importer.apply_draft(draft, src, update_existing)
+                importer.cleanup(token)
+                messages.success(
+                    request,
+                    f"Импорт завершён: новых тем — {stats['topics']}, "
+                    f"новых концептов — {stats['concepts']}, слов записано — {stats['words']}, "
+                    f"пропущено существующих — {stats['skipped']}.",
+                )
+                return redirect(changelist_url)
+
+            form = ArchiveUploadForm(request.POST, request.FILES)
+            if not form.is_valid():
+                ctx['form'] = form
+                return self._render_import(request, ctx)
+            src = form.cleaned_data['src']
+            token = importer.extract_archive(form.cleaned_data['archive'])
+            draft = importer.scan(token, src)
+            return self._render_import(request, ctx, draft, token, src)
+        except importer.ArchiveError as e:
+            messages.error(request, str(e))
+            return self._render_import(request, ctx)
+
+    def translate_view(self, request):
+        if request.method != 'POST' or not self.has_add_permission(request):
+            return JsonResponse({'error': 'forbidden'}, status=403)
+        try:
+            data = json.loads(request.body)
+            src = data['src']
+            items = data['items'][:300]
+            codes = set(Language.objects.values_list('code', flat=True))
+
+            by_target = {}
+            for it in items:
+                if not (it.get('text') or '').strip():
+                    continue
+                for dst in it.get('targets', []):
+                    if dst in codes and dst != src:
+                        by_target.setdefault(dst, []).append(it)
+
+            result = {}
+            for dst, group in by_target.items():
+                texts = [it['text'][:255] for it in group]
+                translated = translator.translate_many(texts, src, dst)
+                for it, tr in zip(group, translated):
+                    result.setdefault(it['id'], {})[dst] = {
+                        'text': tr,
+                        'transcription': translator.transcribe(dst, tr),
+                    }
+            return JsonResponse({'result': result})
+        except Exception as e:  # сеть, лимиты переводчика и т.п.
+            return JsonResponse({'error': str(e)}, status=502)
 
     def get_queryset(self, request):
         return (
@@ -234,6 +366,7 @@ class TopicAdmin(admin.ModelAdmin):
     @admin.display(description="Предпросмотр")
     def icon_preview_large(self, obj):
         return image_preview(obj.icon, 140, 140)
+    
 
 
 @admin.register(TopicTranslate)
