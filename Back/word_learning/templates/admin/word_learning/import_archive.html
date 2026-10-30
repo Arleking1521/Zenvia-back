@@ -1,31 +1,8 @@
 {% extends "admin/base_site.html" %}
-
-{% block extrastyle %}{{ block.super }}
-<style>
-  .imp-toolbar { position: sticky; top: 0; z-index: 20; background: var(--body-bg, #fff);
-    border: 1px solid var(--hairline-color, #ddd); border-radius: 8px; padding: 10px 12px;
-    margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .imp-toolbar .sep { width: 1px; height: 22px; background: #ccc; margin: 0 4px; }
-  .imp-topic { border: 1px solid var(--hairline-color, #ddd); border-radius: 10px; margin-bottom: 22px; overflow: hidden; }
-  .imp-topic > header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 10px 12px; background: rgba(127,127,127,.08); }
-  .imp-topic header img { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; }
-  .imp-titles { display: flex; flex-wrap: wrap; gap: 8px; }
-  .imp-titles label { font-size: 12px; display: block; }
-  .imp-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #dfe9ff; color: #234; }
-  .imp-badge.upd { background: #ffe9c7; }
-  .imp-table { width: 100%; border-collapse: collapse; }
-  .imp-table th, .imp-table td { padding: 6px 8px; vertical-align: top; border-top: 1px solid var(--hairline-color, #eee); }
-  .imp-table img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; }
-  .imp-table input[type=text] { width: 100%; box-sizing: border-box; margin-bottom: 3px; }
-  .imp-table input.tr { font-size: 12px; opacity: .85; }
-  .imp-table audio { height: 28px; width: 100%; }
-  .imp-table input.pos { width: 52px; }
-  .crow.excluded { opacity: .35; }
-  .crow.skipped { opacity: .45; }
-  .crow.skipped .exist::after { content: " · пропустится"; }
-  input.auto { background: #fff7d1 !important; color: #222; }
-  #imp-status { font-size: 12px; opacity: .8; }
-</style>
+{% load static %}
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'your_app/css/import-archive.css' %}">
 {% endblock %}
 
 {% block breadcrumbs %}
@@ -52,7 +29,10 @@
     <ul class="messagelist">{% for e in errors %}<li class="error">{{ e }}</li>{% endfor %}</ul>
   {% endif %}
 
-  <form method="post" id="imp-form">
+  <form method="post"
+      id="imp-form"
+      data-src="{{ src }}"
+      data-translate-url="{{ translate_url }}">
     {% csrf_token %}
     <input type="hidden" name="token" value="{{ token }}">
     <input type="hidden" name="src" value="{{ src }}">
@@ -74,7 +54,7 @@
         Обновлять уже существующие слова
       </label>
       <span id="imp-status"></span>
-      <span style="flex:1"></span>
+      <span class="imp-toolbar-spacer"></span>
       <button type="submit" name="action" value="confirm" class="default">Подтвердить импорт</button>
       <button type="submit" name="action" value="cancel" formnovalidate>Отмена</button>
     </div>
@@ -95,13 +75,13 @@
         <label>Сложность
           <select name="t{{ t.i }}-difficulty">{% for v, l in difficulties %}<option value="{{ v }}" {% if v == t.difficulty %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
         </label>
-        <label>Порядок <input type="number" min="0" style="width:60px" name="t{{ t.i }}-position" value="{{ t.position }}"></label>
+        <label>Порядок <input type="number" min="0" class="imp-position" name="t{{ t.i }}-position" value="{{ t.position }}"></label>
         <label><input type="checkbox" name="t{{ t.i }}-active" {% if t.is_active %}checked{% endif %}> активна</label>
       </header>
 
       <table class="imp-table">
         <thead><tr>
-          <th style="width:70px">#</th><th style="width:84px">Картинка</th><th style="width:130px">Сложность</th>
+          <th class="imp-col-number">#</th><th class="imp-col-image">Картинка</th><th class="imp-col-difficulty">Сложность</th>
           {% for l in langs %}<th>{{ l.title }} ({{ l.code }})</th>{% endfor %}
         </tr></thead>
         <tbody>
@@ -133,125 +113,6 @@
     </section>
     {% endfor %}
   </form>
-
-<script>
-(function () {
-  const SRC = "{{ src }}";
-  const TR_URL = "{{ translate_url }}";
-  const CHUNK = 15;
-  const csrf = document.querySelector('#imp-form [name=csrfmiddlewaretoken]').value;
-  const $ = (s, r = document) => r.querySelector(s);
-  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-  const status = $('#imp-status');
-
-  // --- выделение ---
-  let last = null;
-  const sels = () => $$('.sel');
-  const checked = () => sels().filter(s => s.checked);
-  const upd = () => $('#sel-count').textContent = checked().length;
-
-  document.addEventListener('click', e => {
-    if (!e.target.matches('.sel')) return;
-    if (e.shiftKey && last && last !== e.target) {
-      const all = sels();
-      const a = all.indexOf(last), b = all.indexOf(e.target);
-      for (let i = Math.min(a, b); i <= Math.max(a, b); i++) all[i].checked = e.target.checked;
-    }
-    last = e.target; upd();
-  });
-  $$('.sel-topic').forEach(cb => cb.addEventListener('change', () => {
-    $$('.sel', cb.closest('section')).forEach(s => s.checked = cb.checked); upd();
-  }));
-  $('#sel-all').onclick = () => { sels().forEach(s => s.checked = true); upd(); };
-  $('#sel-none').onclick = () => { sels().forEach(s => s.checked = false); upd(); };
-
-  // --- массовые действия ---
-  const rows = () => checked().map(s => s.closest('tr'));
-  $('#bulk-apply').onclick = () => {
-    const v = $('#bulk-diff').value;
-    rows().forEach(r => $('.dsel', r).value = v);
-  };
-  const setInc = on => rows().forEach(r => {
-    $('.inc', r).value = on ? '1' : '0';
-    r.classList.toggle('excluded', !on);
-  });
-  $('#bulk-exclude').onclick = () => setInc(false);
-  $('#bulk-include').onclick = () => setInc(true);
-
-  // --- перевод ---
-  async function translate(groups) {
-    const items = [];
-    groups.forEach(g => {
-      if (g.classList.contains('excluded')) return;
-      const s = $(`.tx[data-code="${SRC}"]`, g);
-      if (!s || !s.value.trim()) return;
-      const targets = $$('.tx', g)
-        .filter(i => i.dataset.code !== SRC && (!i.value.trim() || i.dataset.auto === '1'))
-        .map(i => i.dataset.code);
-      if (targets.length) items.push({ id: g.dataset.group, text: s.value.trim(), targets });
-    });
-    for (let k = 0; k < items.length; k += CHUNK) {
-      status.textContent = `Перевод: ${Math.min(k + CHUNK, items.length)} / ${items.length}…`;
-      try {
-        const r = await fetch(TR_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-          body: JSON.stringify({ src: SRC, items: items.slice(k, k + CHUNK) }),
-        });
-        const data = await r.json();
-        if (data.error) throw new Error(data.error);
-        for (const [id, byCode] of Object.entries(data.result)) {
-          const g = document.querySelector(`[data-group="${id}"]`);
-          for (const [code, v] of Object.entries(byCode)) {
-            const tx = $(`.tx[data-code="${code}"]`, g);
-            if (tx && v.text) { tx.value = v.text; tx.dataset.auto = '1'; tx.classList.add('auto'); }
-            const tr = $(`.tr[data-code="${code}"]`, g);
-            if (tr && v.transcription && (!tr.value.trim() || tr.dataset.auto === '1')) {
-              tr.value = v.transcription; tr.dataset.auto = '1'; tr.classList.add('auto');
-            }
-          }
-        }
-      } catch (err) {
-        status.textContent = 'Ошибка перевода: ' + err.message; return;
-      }
-    }
-    status.textContent = items.length ? 'Перевод готов' : '';
-  }
-
-  const allGroups = () => $$('[data-group]');
-  $('#tr-now').onclick = () => translate(allGroups());
-
-  // ручная правка снимает пометку «автоперевод»
-  document.addEventListener('input', e => {
-    const el = e.target;
-    if (!el.matches('.tx, .tr')) return;
-    if (el.dataset.code !== SRC || el.classList.contains('tr')) {
-      delete el.dataset.auto; el.classList.remove('auto');
-    }
-  });
-  // правка слова на языке папок пересчитывает остальные автопереводы
-  document.addEventListener('change', e => {
-    const el = e.target;
-    if (el.matches(`.tx[data-code="${SRC}"]`) && $('#auto-tr').checked) {
-      translate([el.closest('[data-group]')]);
-    }
-  });
-
-  // Enter в поле не должен случайно подтвердить импорт
-  $('#imp-form').addEventListener('keydown', e => {
-    if (e.key === 'Enter' && e.target.matches('input[type=text], input[type=number]')) e.preventDefault();
-  });
-
-  // подсветка строк, которые будут пропущены
-  const syncSkipped = () => $$('.crow').forEach(r => {
-    const isExisting = !!$('.exist', r);
-    r.classList.toggle('skipped', isExisting && !$('#upd-existing').checked);
-  });
-  $('#upd-existing').addEventListener('change', syncSkipped);
-  syncSkipped();
-
-  if ($('#auto-tr').checked) translate(allGroups());
-})();
-</script>
+<script src="{% static 'word_learning/js/import_archive.js' %}" defer></script>
 {% endif %}
 {% endblock %}

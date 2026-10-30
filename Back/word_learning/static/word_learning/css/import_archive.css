@@ -1,0 +1,149 @@
+
+.imp-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--body-bg, #fff);
+    border: 1px solid var(--hairline-color, #ddd);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.imp-toolbar .sep {
+    width: 1px;
+    height: 22px;
+    background: #ccc;
+    margin: 0 4px;
+}
+
+.imp-toolbar-spacer {
+    flex: 1;
+}
+
+.imp-topic {
+    border: 1px solid var(--hairline-color, #ddd);
+    border-radius: 10px;
+    margin-bottom: 22px;
+    overflow: hidden;
+}
+
+.imp-topic > header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 12px;
+    background: rgba(127,127,127,.08);
+}
+
+.imp-topic header img {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.imp-titles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.imp-titles label {
+    font-size: 12px;
+    display: block;
+}
+
+.imp-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #dfe9ff;
+    color: #234;
+}
+
+.imp-badge.upd {
+    background: #ffe9c7;
+}
+
+.imp-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.imp-table th,
+.imp-table td {
+    padding: 6px 8px;
+    vertical-align: top;
+    border-top: 1px solid var(--hairline-color, #eee);
+}
+
+.imp-table img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.imp-table input[type=text] {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 3px;
+}
+
+.imp-table input.tr {
+    font-size: 12px;
+    opacity: .85;
+}
+
+.imp-table audio {
+    height: 28px;
+    width: 100%;
+}
+
+.imp-table input.pos {
+    width: 52px;
+}
+
+.imp-position {
+    width: 60px;
+}
+
+.imp-col-number {
+    width: 70px;
+}
+
+.imp-col-image {
+    width: 84px;
+}
+
+.imp-col-difficulty {
+    width: 130px;
+}
+
+.crow.excluded {
+    opacity: .35;
+}
+
+.crow.skipped {
+    opacity: .45;
+}
+
+.crow.skipped .exist::after {
+    content: " · пропустится";
+}
+
+input.auto {
+    background: #fff7d1 !important;
+    color: #222;
+}
+
+#imp-status {
+    font-size: 12px;
+    opacity: .8;
+}
