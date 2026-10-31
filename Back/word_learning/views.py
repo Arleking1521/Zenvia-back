@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from drf_spectacular.utils import extend_schema
 from rest_framework.mixins import (
     ListModelMixin,
@@ -283,8 +284,28 @@ class WordProgressViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
             status=status.HTTP_410_GONE
         )
 
+class LiteraryContentPagination(PageNumberPagination):
+    """
+    Optional pagination for the knowledge-cave catalogue.
+
+    Existing clients that do not send page/page_size keep receiving the
+    legacy unpaginated list. This avoids changing achievement calculations
+    and any older application builds.
+    """
+
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+    def paginate_queryset(self, queryset, request, view=None):
+        if 'page' not in request.query_params and 'page_size' not in request.query_params:
+            return None
+        return super().paginate_queryset(queryset, request, view=view)
+
+
 class LiteraryContentViewSet(ReadOnlyModelViewSet):
     serializer_class = LiteraryContentSerializer
+    pagination_class = LiteraryContentPagination
     permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get_queryset(self):
