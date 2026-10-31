@@ -345,6 +345,36 @@ class LiteraryContentViewSet(ReadOnlyModelViewSet):
 
         return queryset
 
+    def _available_content_types(self):
+        """Категории, в которых есть активные записи для выбранного языка."""
+        queryset = LiteraryContent.objects.filter(is_active=True)
+
+        language = self.request.query_params.get('language')
+        if language:
+            queryset = queryset.filter(language__code=language)
+        else:
+            child = get_child_profile(self.request)
+            if child.base_language:
+                queryset = queryset.filter(language=child.base_language)
+
+        return list(
+            queryset
+            .values_list('content_type', flat=True)
+            .order_by()
+            .distinct()
+        )
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+
+        # Дополнительное поле добавляем только в новый paginated-формат.
+        # Старые клиенты без page/page_size по-прежнему получают обычный список.
+        if isinstance(response.data, dict) and 'results' in response.data:
+            response.data['available_content_types'] = self._available_content_types()
+
+        return response
+
+
 class ProfileContentProgressViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
     serializer_class = ProfileContentProgressSerializer
     permission_classes = [IsAuthenticated, HasActiveSubscription]
